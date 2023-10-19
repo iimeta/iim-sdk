@@ -1,4 +1,4 @@
-package robot
+package openai
 
 import (
 	"context"
@@ -9,22 +9,25 @@ import (
 	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/iimeta/iim-sdk/internal/config"
 	"github.com/iimeta/iim-sdk/internal/consts"
+	"github.com/iimeta/iim-sdk/internal/model"
+	"github.com/iimeta/iim-sdk/internal/service"
 	"github.com/iimeta/iim-sdk/utility/logger"
 	"github.com/iimeta/iim-sdk/utility/redis"
 	"github.com/iimeta/iim-sdk/utility/sdk"
-	"github.com/iimeta/iim-sdk/utility/util"
 	"github.com/sashabaranov/go-openai"
 )
 
-type openAI struct{}
-
-var OpenAI *openAI
+type sOpenAI struct{}
 
 func init() {
-	OpenAI = &openAI{}
+	service.RegisterOpenAI(New())
 }
 
-func (o *openAI) Chat(ctx context.Context, senderId, receiverId, talkType int, text, model string, isOpenContext int, mentions ...string) (string, error) {
+func New() service.IOpenAI {
+	return &sOpenAI{}
+}
+
+func (s *sOpenAI) Text(ctx context.Context, senderId, receiverId, talkType int, text, model string, isOpenContext int, mentions ...string) (string, error) {
 
 	if talkType == 2 {
 		content := gstr.Split(text, " ")
@@ -124,7 +127,7 @@ func (o *openAI) Chat(ctx context.Context, senderId, receiverId, talkType int, t
 					logger.Error(ctx, err)
 					return "", err
 				} else {
-					return o.Chat(ctx, senderId, receiverId, talkType, text, model, isOpenContext, mentions...)
+					return s.Text(ctx, senderId, receiverId, talkType, text, model, isOpenContext, mentions...)
 				}
 			}
 		}
@@ -171,7 +174,7 @@ func (o *openAI) Chat(ctx context.Context, senderId, receiverId, talkType int, t
 	return content, err
 }
 
-func (o *openAI) Image(ctx context.Context, senderId, receiverId, talkType int, text string, mentions ...string) (*util.ImageInfo, error) {
+func (s *sOpenAI) Image(ctx context.Context, senderId, receiverId, talkType int, text string, mentions ...string) (*model.Image, error) {
 
 	if talkType == 2 {
 		content := gstr.Split(text, " ")
@@ -198,7 +201,7 @@ func (o *openAI) Image(ctx context.Context, senderId, receiverId, talkType int, 
 		return nil, err
 	}
 
-	imageInfo, err := util.SaveImage(ctx, imgBytes, ".png")
+	imageInfo, err := service.File().SaveImage(ctx, imgBytes, ".png")
 	if err != nil {
 		logger.Error(ctx, err)
 		return nil, err
@@ -212,10 +215,10 @@ func (o *openAI) Image(ctx context.Context, senderId, receiverId, talkType int, 
 
 	url := domain.String() + "/" + imageInfo.FilePath
 
-	return &util.ImageInfo{
-		ImageURL: url,
-		Width:    imageInfo.Width,
-		Height:   imageInfo.Height,
-		Size:     imageInfo.Size,
+	return &model.Image{
+		Url:    url,
+		Width:  imageInfo.Width,
+		Height: imageInfo.Height,
+		Size:   imageInfo.Size,
 	}, nil
 }

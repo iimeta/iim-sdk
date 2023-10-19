@@ -1,4 +1,4 @@
-package robot
+package baidu
 
 import (
 	"context"
@@ -7,20 +7,23 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/iimeta/iim-sdk/internal/consts"
+	"github.com/iimeta/iim-sdk/internal/service"
 	"github.com/iimeta/iim-sdk/utility/logger"
 	"github.com/iimeta/iim-sdk/utility/sdk"
 	"github.com/sashabaranov/go-openai"
 )
 
-type spark struct{}
-
-var Spark *spark
+type sBaidu struct{}
 
 func init() {
-	Spark = &spark{}
+	service.RegisterBaidu(New())
 }
 
-func (o *spark) Chat(ctx context.Context, senderId, receiverId, talkType int, text, model string, mentions ...string) (string, error) {
+func New() service.IBaidu {
+	return &sBaidu{}
+}
+
+func (s *sBaidu) Text(ctx context.Context, senderId, receiverId, talkType int, text, model string, mentions ...string) (string, error) {
 
 	if talkType == 2 {
 		content := gstr.Split(text, " ")
@@ -38,7 +41,7 @@ func (o *spark) Chat(ctx context.Context, senderId, receiverId, talkType int, te
 		return "", nil
 	}
 
-	messages := make([]sdk.Text, 0)
+	messages := make([]sdk.ErnieBotMessage, 0)
 
 	reply, err := g.Redis().LRange(ctx, fmt.Sprintf(consts.CHAT_MESSAGES_PREFIX_KEY, receiverId, senderId), 0, -1)
 	if err != nil {
@@ -49,31 +52,33 @@ func (o *spark) Chat(ctx context.Context, senderId, receiverId, talkType int, te
 	messagesStr := reply.Strings()
 
 	for _, str := range messagesStr {
-		textMessage := sdk.Text{}
-		if err := json.Unmarshal([]byte(str), &textMessage); err != nil {
+		ernieBotMessage := sdk.ErnieBotMessage{}
+		if err := json.Unmarshal([]byte(str), &ernieBotMessage); err != nil {
 			logger.Error(ctx, err)
 			continue
 		}
-		if textMessage.Role != openai.ChatMessageRoleSystem {
-			messages = append(messages, textMessage)
+		if ernieBotMessage.Role != openai.ChatMessageRoleSystem {
+			messages = append(messages, ernieBotMessage)
 		}
 	}
 
-	textMessage := sdk.Text{
-		Role:    sdk.SparkMessageRoleUser,
+	ernieBotMessage := sdk.ErnieBotMessage{
+		Role:    sdk.ErnieBotMessageRoleUser,
 		Content: text,
 	}
 
-	b, err := json.Marshal(textMessage)
+	b, err := json.Marshal(ernieBotMessage)
 	if err != nil {
 		logger.Error(ctx, err)
+		return "", err
 	}
 
-	logger.Infof(ctx, "textMessage: %s", string(b))
+	logger.Infof(ctx, "ernieBotMessage: %s", string(b))
 
-	messages = append(messages, textMessage)
+	messages = append(messages, ernieBotMessage)
 
-	response, err := sdk.SparkChat(ctx, model, fmt.Sprintf("%d", receiverId), messages)
+	response, err := sdk.ErnieBot(ctx, model, messages)
+
 	if err != nil {
 		logger.Error(ctx, err)
 		return "", err
@@ -85,14 +90,14 @@ func (o *spark) Chat(ctx context.Context, senderId, receiverId, talkType int, te
 		return "", err
 	}
 
-	content := response
+	content := response.Result
 
-	textMessage = sdk.Text{
-		Role:    sdk.SparkMessageRoleAssistant,
+	ernieBotMessage = sdk.ErnieBotMessage{
+		Role:    sdk.ErnieBotMessageRoleAssistant,
 		Content: content,
 	}
 
-	b, err = json.Marshal(textMessage)
+	b, err = json.Marshal(ernieBotMessage)
 	if err != nil {
 		logger.Error(ctx, err)
 		return "", err
@@ -115,5 +120,5 @@ func (o *spark) Chat(ctx context.Context, senderId, receiverId, talkType int, te
 		}
 	}
 
-	return content, nil
+	return content, err
 }

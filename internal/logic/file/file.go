@@ -1,10 +1,12 @@
-package util
+package file
 
 import (
 	"context"
 	"crypto/md5"
 	"fmt"
 	"github.com/gogf/gf/v2/encoding/gjson"
+	"github.com/iimeta/iim-sdk/internal/model"
+	"github.com/iimeta/iim-sdk/internal/service"
 	"github.com/iimeta/iim-sdk/utility/logger"
 	"image"
 	"io/fs"
@@ -12,18 +14,19 @@ import (
 	"time"
 )
 
-type ImageInfo struct {
-	ImageURL string
-	Md5Sum   string
-	FilePath string
-	Size     int
-	Width    int
-	Height   int
+type sFile struct{}
+
+func init() {
+	service.RegisterFile(New())
 }
 
-func SaveImage(ctx context.Context, imgBytes []byte, ext string, fileName ...string) (*ImageInfo, error) {
+func New() service.IFile {
+	return &sFile{}
+}
 
-	basePath := fmt.Sprintf("public/media/image/talk/%s", DateNumber())
+func (s *sFile) SaveImage(ctx context.Context, imgBytes []byte, ext string, fileName ...string) (*model.Image, error) {
+
+	basePath := fmt.Sprintf("public/media/image/talk/%s", time.Now().Format("20060102"))
 
 	err := os.MkdirAll("./resource/"+basePath, fs.ModePerm)
 	if err != nil {
@@ -92,7 +95,7 @@ func SaveImage(ctx context.Context, imgBytes []byte, ext string, fileName ...str
 		}
 	}
 
-	imageInfo := &ImageInfo{
+	imageInfo := &model.Image{
 		Md5Sum:   md5Sum,
 		FilePath: filePath,
 		Size:     size,
@@ -103,8 +106,4 @@ func SaveImage(ctx context.Context, imgBytes []byte, ext string, fileName ...str
 	logger.Infof(ctx, "SaveImage imageInfo: %s, size: %d", gjson.MustEncodeString(imageInfo), imageInfo.Size)
 
 	return imageInfo, nil
-}
-
-func DateNumber() string {
-	return time.Now().Format("20060102")
 }

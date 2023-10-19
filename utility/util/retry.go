@@ -2,16 +2,15 @@ package util
 
 import "time"
 
-func Retry(num int, sleep time.Duration, fn func() error) error {
+func Retry(num int, sleep time.Duration, fn func() (any, error)) (any, error) {
 
 	var err error
 	for i := 0; i < num; i++ {
-		if err = fn(); err == nil {
-			return nil
+		if res, err := fn(); err == nil {
+			return res, nil
 		}
-
 		time.Sleep(sleep)
 	}
 
-	return err
+	return nil, err
 }

@@ -1,4 +1,4 @@
-package robot
+package xfyun
 
 import (
 	"context"
@@ -7,19 +7,23 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/iimeta/iim-sdk/internal/consts"
+	"github.com/iimeta/iim-sdk/internal/service"
 	"github.com/iimeta/iim-sdk/utility/logger"
 	"github.com/iimeta/iim-sdk/utility/sdk"
+	"github.com/sashabaranov/go-openai"
 )
 
-type aliyun struct{}
-
-var Aliyun *aliyun
+type sXfyun struct{}
 
 func init() {
-	Aliyun = &aliyun{}
+	service.RegisterXfyun(New())
 }
 
-func (o *aliyun) Chat(ctx context.Context, senderId, receiverId, talkType int, text, model string, mentions ...string) (string, error) {
+func New() service.IXfyun {
+	return &sXfyun{}
+}
+
+func (s *sXfyun) Text(ctx context.Context, senderId, receiverId, talkType int, text, model string, mentions ...string) (string, error) {
 
 	if talkType == 2 {
 		content := gstr.Split(text, " ")
@@ -37,7 +41,7 @@ func (o *aliyun) Chat(ctx context.Context, senderId, receiverId, talkType int, t
 		return "", nil
 	}
 
-	messages := make([]sdk.QwenChatCompletionMessage, 0)
+	messages := make([]sdk.Text, 0)
 
 	reply, err := g.Redis().LRange(ctx, fmt.Sprintf(consts.CHAT_MESSAGES_PREFIX_KEY, receiverId, senderId), 0, -1)
 	if err != nil {
@@ -48,40 +52,50 @@ func (o *aliyun) Chat(ctx context.Context, senderId, receiverId, talkType int, t
 	messagesStr := reply.Strings()
 
 	for _, str := range messagesStr {
-		qwenChatCompletionMessage := sdk.QwenChatCompletionMessage{}
-		if err := json.Unmarshal([]byte(str), &qwenChatCompletionMessage); err != nil {
+		textMessage := sdk.Text{}
+		if err := json.Unmarshal([]byte(str), &textMessage); err != nil {
 			logger.Error(ctx, err)
 			continue
 		}
-		messages = append(messages, qwenChatCompletionMessage)
+		if textMessage.Role != openai.ChatMessageRoleSystem {
+			messages = append(messages, textMessage)
+		}
 	}
 
-	qwenChatCompletionMessage := sdk.QwenChatCompletionMessage{
-		User: text,
+	textMessage := sdk.Text{
+		Role:    sdk.SparkMessageRoleUser,
+		Content: text,
 	}
 
-	b, err := json.Marshal(qwenChatCompletionMessage)
+	b, err := json.Marshal(textMessage)
+	if err != nil {
+		logger.Error(ctx, err)
+	}
+
+	logger.Infof(ctx, "textMessage: %s", string(b))
+
+	messages = append(messages, textMessage)
+
+	response, err := sdk.SparkChat(ctx, model, fmt.Sprintf("%d", receiverId), messages)
 	if err != nil {
 		logger.Error(ctx, err)
 		return "", err
 	}
 
-	logger.Infof(ctx, "qwenChatCompletionMessage: %s", string(b))
-
-	messages = append(messages, qwenChatCompletionMessage)
-
-	response, err := sdk.QwenChatCompletion(ctx, model, messages)
-
+	_, err = g.Redis().RPush(ctx, fmt.Sprintf(consts.CHAT_MESSAGES_PREFIX_KEY, receiverId, senderId), b)
 	if err != nil {
 		logger.Error(ctx, err)
 		return "", err
 	}
 
-	content := response.Output.Text
+	content := response
 
-	qwenChatCompletionMessage.Bot = content
+	textMessage = sdk.Text{
+		Role:    sdk.SparkMessageRoleAssistant,
+		Content: content,
+	}
 
-	b, err = json.Marshal(qwenChatCompletionMessage)
+	b, err = json.Marshal(textMessage)
 	if err != nil {
 		logger.Error(ctx, err)
 		return "", err
@@ -104,5 +118,5 @@ func (o *aliyun) Chat(ctx context.Context, senderId, receiverId, talkType int, t
 		}
 	}
 
-	return content, err
+	return content, nil
 }

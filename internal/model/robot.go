@@ -18,3 +18,23 @@ type Robot struct {
 	CreatedAt int64  `json:"created_at,omitempty"` // 创建时间
 	UpdatedAt int64  `json:"updated_at,omitempty"` // 更新时间
 }
+
+type Text struct {
+	Content string `json:"content"`
+	Usage   Usage  `json:"usage"`
+}
+
+type Usage struct {
+	PromptTokens     int `json:"prompt_tokens"`
+	CompletionTokens int `json:"completion_tokens"`
+	TotalTokens      int `json:"total_tokens"`
+}
+
+type Image struct {
+	Url      string `json:"url"`
+	Width    int    `json:"width"`
+	Height   int    `json:"height"`
+	Size     int    `json:"size"`
+	Md5Sum   string `json:"md5sum"`
+	FilePath string `json:"file_path"`
+}

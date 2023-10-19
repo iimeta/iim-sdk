@@ -1,4 +1,4 @@
-package robot
+package midjourney
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"github.com/gogf/gf/v2/os/grpool"
 	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/iimeta/iim-sdk/internal/config"
+	"github.com/iimeta/iim-sdk/internal/model"
+	"github.com/iimeta/iim-sdk/internal/service"
 	"github.com/iimeta/iim-sdk/utility/logger"
 	"github.com/iimeta/iim-sdk/utility/sdk"
 	"github.com/iimeta/iim-sdk/utility/util"
@@ -13,15 +15,17 @@ import (
 	"strings"
 )
 
-type midjourney struct{}
-
-var Midjourney *midjourney
+type sMidjourney struct{}
 
 func init() {
-	Midjourney = &midjourney{}
+	service.RegisterMidjourney(New())
 }
 
-func (m *midjourney) Image(ctx context.Context, senderId, receiverId, talkType int, text string, proxy string) (*util.ImageInfo, string, error) {
+func New() service.IMidjourney {
+	return &sMidjourney{}
+}
+
+func (s *sMidjourney) Image(ctx context.Context, senderId, receiverId, talkType int, text string, proxy string) (*model.Image, string, error) {
 
 	if talkType == 2 {
 		content := gstr.Split(text, " ")
@@ -50,7 +54,7 @@ func (m *midjourney) Image(ctx context.Context, senderId, receiverId, talkType i
 	imageURL := ""
 	taskId := ""
 	var err error
-	var imageInfo *util.ImageInfo
+	var imageInfo *model.Image
 
 	switch proxy {
 	case "midjourney_proxy":
@@ -77,7 +81,7 @@ func (m *midjourney) Image(ctx context.Context, senderId, receiverId, talkType i
 
 		if cdn_url.String() != "" {
 
-			imageInfo = &util.ImageInfo{
+			imageInfo = &model.Image{
 				Size:   1024 * 1024 * 5,
 				Width:  512,
 				Height: 512,
@@ -88,7 +92,7 @@ func (m *midjourney) Image(ctx context.Context, senderId, receiverId, talkType i
 				imgBytes := util.HttpDownloadFile(ctx, imageURL, false)
 
 				if len(imgBytes) != 0 {
-					_, err = util.SaveImage(ctx, imgBytes, gfile.Ext(imageURL), gfile.Basename(imageURL))
+					_, err = service.File().SaveImage(ctx, imgBytes, gfile.Ext(imageURL), gfile.Basename(imageURL))
 					if err != nil {
 						logger.Error(ctx, err)
 						return
@@ -116,7 +120,7 @@ func (m *midjourney) Image(ctx context.Context, senderId, receiverId, talkType i
 				return nil, taskId, err
 			}
 
-			imageInfo, err = util.SaveImage(ctx, imgBytes, gfile.Ext(imageURL))
+			imageInfo, err = service.File().SaveImage(ctx, imgBytes, gfile.Ext(imageURL))
 			if err != nil {
 				logger.Error(ctx, err)
 				return nil, taskId, err
@@ -134,10 +138,10 @@ func (m *midjourney) Image(ctx context.Context, senderId, receiverId, talkType i
 
 	logger.Infof(ctx, "SendImage imageURL: %s, Width: %d, Height: %d, Size: %d", imageURL, imageInfo.Width, imageInfo.Height, imageInfo.Size)
 
-	return &util.ImageInfo{
-		ImageURL: imageURL,
-		Width:    imageInfo.Width,
-		Height:   imageInfo.Height,
-		Size:     imageInfo.Size,
+	return &model.Image{
+		Url:    imageURL,
+		Width:  imageInfo.Width,
+		Height: imageInfo.Height,
+		Size:   imageInfo.Size,
 	}, taskId, nil
 }

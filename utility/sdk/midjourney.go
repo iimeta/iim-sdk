@@ -10,12 +10,13 @@ import (
 	"github.com/iimeta/iim-sdk/internal/config"
 	"github.com/iimeta/iim-sdk/internal/errors"
 	"github.com/iimeta/iim-sdk/internal/model"
+	"github.com/iimeta/iim-sdk/internal/service"
 	"github.com/iimeta/iim-sdk/utility/logger"
 	"github.com/iimeta/iim-sdk/utility/util"
 	"time"
 )
 
-func MidjourneyProxy(ctx context.Context, prompt string) (string, *util.ImageInfo, string, error) {
+func MidjourneyProxy(ctx context.Context, prompt string) (string, *model.Image, string, error) {
 
 	api_secret, err := config.Get(ctx, "midjourney.midjourney_proxy.api_secret")
 	if err != nil {
@@ -51,7 +52,7 @@ func MidjourneyProxy(ctx context.Context, prompt string) (string, *util.ImageInf
 		return MidjourneyProxy(ctx, prompt)
 	}
 
-	var imageInfo *util.ImageInfo
+	var imageInfo *model.Image
 	if midjourneyProxyImagineRes.Result != "" {
 
 		for {
@@ -78,7 +79,7 @@ func MidjourneyProxy(ctx context.Context, prompt string) (string, *util.ImageInf
 	}
 }
 
-func MidjourneyProxyChanges(ctx context.Context, prompt string) (string, *util.ImageInfo, string, error) {
+func MidjourneyProxyChanges(ctx context.Context, prompt string) (string, *model.Image, string, error) {
 
 	prompts := gstr.Split(prompt, "::")
 	midjourneyProxyChangeReq := &model.MidjourneyProxyChangeReq{
@@ -89,7 +90,7 @@ func MidjourneyProxyChanges(ctx context.Context, prompt string) (string, *util.I
 
 	midjourneyProxyChangeRes, err := MidjourneyProxyChange(ctx, midjourneyProxyChangeReq)
 
-	var imageInfo *util.ImageInfo
+	var imageInfo *model.Image
 	if midjourneyProxyChangeRes.Result != "" {
 
 		for {
@@ -256,7 +257,7 @@ func MidjourneyProxyBlend(ctx context.Context, midjourneyProxyBlendReq *model.Mi
 	return midjourneyProxyBlendRes, nil
 }
 
-func MidjourneyProxyFetch(ctx context.Context, taskId string) (imageInfo *util.ImageInfo, midjourneyProxyFetchRes *model.MidjourneyProxyFetchRes, err error) {
+func MidjourneyProxyFetch(ctx context.Context, taskId string) (imageInfo *model.Image, midjourneyProxyFetchRes *model.MidjourneyProxyFetchRes, err error) {
 
 	fetch_url, err := config.Get(ctx, "midjourney.midjourney_proxy.fetch_url")
 	if err != nil {
@@ -308,7 +309,7 @@ func MidjourneyProxyFetch(ctx context.Context, taskId string) (imageInfo *util.I
 
 		imgBytes := util.HttpDownloadFile(ctx, imageUrl, true)
 
-		imageInfo, err = util.SaveImage(ctx, imgBytes, gfile.Ext(imageUrl))
+		imageInfo, err = service.File().SaveImage(ctx, imgBytes, gfile.Ext(imageUrl)) // todo
 		if err != nil {
 			logger.Error(ctx, err)
 			return nil, nil, err

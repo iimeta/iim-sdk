@@ -1,7 +1,7 @@
 package consts
 
 const (
-	CHAT_MESSAGES_PREFIX_KEY = "chat_messages:%d_%d"
+	CHAT_MESSAGES_PREFIX_KEY = "chat_messages:%s_%d"
 )
 
 const (
