@@ -12,7 +12,6 @@ import (
 	"github.com/iimeta/iim-sdk/utility/sdk"
 	"github.com/iimeta/iim-sdk/utility/util"
 	"net/url"
-	"strings"
 )
 
 type sMidjourney struct{}
@@ -25,51 +24,19 @@ func New() service.IMidjourney {
 	return &sMidjourney{}
 }
 
-func (s *sMidjourney) Image(ctx context.Context, senderId, receiverId, talkType int, text string, proxy string) (*model.Image, string, error) {
+func (s *sMidjourney) Image(ctx context.Context, userId int, message *model.Message) (imageInfo *model.Image, err error) {
 
-	if talkType == 2 {
-		content := gstr.Split(text, " ")
-		if len(content) > 1 {
-			text = content[1]
-		} else {
-			content = gstr.Split(text, " ")
-			if len(content) > 1 {
-				text = content[1]
-			}
-		}
+	if gstr.HasPrefix(message.Prompt, "UPSCALE") || gstr.HasPrefix(message.Prompt, "VARIATION") {
+		imageInfo, err = sdk.MidjourneyProxyChanges(ctx, message.Prompt)
+	} else {
+		imageInfo, err = sdk.MidjourneyProxy(ctx, message.Prompt)
 	}
 
-	if len(text) == 0 {
-		return nil, "", nil
-	}
+	logger.Infof(ctx, "Midjourney Image URL: %s", imageInfo.Url)
 
-	logger.Infof(ctx, "Midjourney Image prompt: %s", text)
-
-	text = gstr.Replace(text, "\n", "")
-	text = gstr.Replace(text, "\r", "")
-	text = gstr.TrimLeftStr(text, "/mj")
-	text = gstr.TrimLeftStr(text, "/imagine")
-	text = strings.TrimSpace(text)
-
-	imageURL := ""
-	taskId := ""
-	var err error
-	var imageInfo *model.Image
-
-	switch proxy {
-	case "midjourney_proxy":
-		if gstr.HasPrefix(text, "UPSCALE") || gstr.HasPrefix(text, "VARIATION") {
-			taskId, imageInfo, imageURL, err = sdk.MidjourneyProxyChanges(ctx, text)
-		} else {
-			taskId, imageInfo, imageURL, err = sdk.MidjourneyProxy(ctx, text)
-		}
-	}
-
-	logger.Infof(ctx, "Midjourney Image imageURL: %s", imageURL)
-
-	if err != nil || imageURL == "" {
+	if err != nil || imageInfo.Url == "" {
 		logger.Error(ctx, err)
-		return nil, taskId, err
+		return nil, err
 	}
 
 	if imageInfo == nil {
@@ -77,6 +44,7 @@ func (s *sMidjourney) Image(ctx context.Context, senderId, receiverId, talkType 
 		cdn_url, err := config.Get(ctx, "midjourney.cdn_url")
 		if err != nil {
 			logger.Error(ctx, err)
+			return nil, err
 		}
 
 		if cdn_url.String() != "" {
@@ -89,59 +57,52 @@ func (s *sMidjourney) Image(ctx context.Context, senderId, receiverId, talkType 
 
 			_ = grpool.AddWithRecover(ctx, func(ctx context.Context) {
 
-				imgBytes := util.HttpDownloadFile(ctx, imageURL, false)
+				imgBytes := util.HttpDownloadFile(ctx, imageInfo.Url, false)
 
 				if len(imgBytes) != 0 {
-					_, err = service.File().SaveImage(ctx, imgBytes, gfile.Ext(imageURL), gfile.Basename(imageURL))
+					_, err = service.File().SaveImage(ctx, imgBytes, gfile.Ext(imageInfo.Url), gfile.Basename(imageInfo.Url))
 					if err != nil {
 						logger.Error(ctx, err)
 						return
 					}
 				} else {
-					logger.Errorf(ctx, "HttpDownloadFile %s fail", imageURL)
+					logger.Errorf(ctx, "HttpDownloadFile %s fail", imageInfo.Url)
 				}
 
 			}, nil)
 
-			originalUrl, err := url.Parse(imageURL)
+			originalUrl, err := url.Parse(imageInfo.Url)
 			if err != nil {
 				logger.Error(ctx, err)
-				return nil, taskId, err
+				return nil, err
 			}
 
 			// 替换CDN
-			imageURL = cdn_url.String() + originalUrl.Path
+			imageInfo.Url = cdn_url.String() + originalUrl.Path
 
 		} else {
 
-			imgBytes := util.HttpDownloadFile(ctx, imageURL, false)
+			imgBytes := util.HttpDownloadFile(ctx, imageInfo.Url, false)
 
 			if len(imgBytes) == 0 {
-				return nil, taskId, err
+				return nil, err
 			}
 
-			imageInfo, err = service.File().SaveImage(ctx, imgBytes, gfile.Ext(imageURL))
+			imageInfo, err = service.File().SaveImage(ctx, imgBytes, gfile.Ext(imageInfo.Url))
 			if err != nil {
 				logger.Error(ctx, err)
-				return nil, taskId, err
+				return nil, err
 			}
 
 			domain, err := config.Get(ctx, "filesystem.local.domain")
 			if err != nil {
 				logger.Error(ctx, err)
-				return nil, taskId, err
+				return nil, err
 			}
 
-			imageURL = domain.String() + "/" + imageInfo.FilePath
+			imageInfo.Url = domain.String() + "/" + imageInfo.FilePath
 		}
 	}
 
-	logger.Infof(ctx, "SendImage imageURL: %s, Width: %d, Height: %d, Size: %d", imageURL, imageInfo.Width, imageInfo.Height, imageInfo.Size)
-
-	return &model.Image{
-		Url:    imageURL,
-		Width:  imageInfo.Width,
-		Height: imageInfo.Height,
-		Size:   imageInfo.Size,
-	}, taskId, nil
+	return imageInfo, nil
 }

@@ -13,7 +13,7 @@ import (
 
 type (
 	IMidjourney interface {
-		Image(ctx context.Context, senderId, receiverId, talkType int, text string, proxy string) (*model.Image, string, error)
+		Image(ctx context.Context, userId int, message *model.Message) (imageInfo *model.Image, err error)
 	}
 )
 

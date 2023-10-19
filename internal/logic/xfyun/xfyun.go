@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gogf/gf/v2/frame/g"
-	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/iimeta/iim-sdk/internal/consts"
+	"github.com/iimeta/iim-sdk/internal/model"
 	"github.com/iimeta/iim-sdk/internal/service"
 	"github.com/iimeta/iim-sdk/utility/logger"
 	"github.com/iimeta/iim-sdk/utility/sdk"
@@ -23,48 +23,34 @@ func New() service.IXfyun {
 	return &sXfyun{}
 }
 
-func (s *sXfyun) Text(ctx context.Context, senderId, receiverId, talkType int, text, model string, mentions ...string) (string, error) {
-
-	if talkType == 2 {
-		content := gstr.Split(text, " ")
-		if len(content) > 1 {
-			text = content[1]
-		} else {
-			content = gstr.Split(text, " ")
-			if len(content) > 1 {
-				text = content[1]
-			}
-		}
-	}
-
-	if len(text) == 0 {
-		return "", nil
-	}
+func (s *sXfyun) Text(ctx context.Context, userId int, message *model.Message) (*model.Text, error) {
 
 	messages := make([]sdk.Text, 0)
 
-	reply, err := g.Redis().LRange(ctx, fmt.Sprintf(consts.CHAT_MESSAGES_PREFIX_KEY, receiverId, senderId), 0, -1)
-	if err != nil {
-		logger.Error(ctx, err)
-		return "", err
-	}
-
-	messagesStr := reply.Strings()
-
-	for _, str := range messagesStr {
-		textMessage := sdk.Text{}
-		if err := json.Unmarshal([]byte(str), &textMessage); err != nil {
+	if message.IsWithContext {
+		reply, err := g.Redis().LRange(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), 0, -1)
+		if err != nil {
 			logger.Error(ctx, err)
-			continue
+			return nil, err
 		}
-		if textMessage.Role != openai.ChatMessageRoleSystem {
-			messages = append(messages, textMessage)
+
+		messagesStr := reply.Strings()
+
+		for _, str := range messagesStr {
+			textMessage := sdk.Text{}
+			if err := json.Unmarshal([]byte(str), &textMessage); err != nil {
+				logger.Error(ctx, err)
+				continue
+			}
+			if textMessage.Role != openai.ChatMessageRoleSystem {
+				messages = append(messages, textMessage)
+			}
 		}
 	}
 
 	textMessage := sdk.Text{
 		Role:    sdk.SparkMessageRoleUser,
-		Content: text,
+		Content: message.Prompt,
 	}
 
 	b, err := json.Marshal(textMessage)
@@ -76,19 +62,19 @@ func (s *sXfyun) Text(ctx context.Context, senderId, receiverId, talkType int, t
 
 	messages = append(messages, textMessage)
 
-	response, err := sdk.SparkChat(ctx, model, fmt.Sprintf("%d", receiverId), messages)
+	response, err := sdk.SparkChat(ctx, message.Model, fmt.Sprintf("%d", userId), messages)
 	if err != nil {
 		logger.Error(ctx, err)
-		return "", err
+		return nil, err
 	}
 
-	_, err = g.Redis().RPush(ctx, fmt.Sprintf(consts.CHAT_MESSAGES_PREFIX_KEY, receiverId, senderId), b)
+	_, err = g.Redis().RPush(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), b)
 	if err != nil {
 		logger.Error(ctx, err)
-		return "", err
+		return nil, err
 	}
 
-	content := response
+	content := response.Content
 
 	textMessage = sdk.Text{
 		Role:    sdk.SparkMessageRoleAssistant,
@@ -98,25 +84,21 @@ func (s *sXfyun) Text(ctx context.Context, senderId, receiverId, talkType int, t
 	b, err = json.Marshal(textMessage)
 	if err != nil {
 		logger.Error(ctx, err)
-		return "", err
+		return nil, err
 	}
 
-	_, err = g.Redis().RPush(ctx, fmt.Sprintf(consts.CHAT_MESSAGES_PREFIX_KEY, receiverId, senderId), b)
+	_, err = g.Redis().RPush(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), b)
 	if err != nil {
 		logger.Error(ctx, err)
-		return "", err
+		return nil, err
 	}
 
-	if talkType == 2 {
-		for i, mention := range mentions {
-			if i == 0 {
-				content += "\n"
-			} else {
-				content += " "
-			}
-			content += "@" + mention
-		}
-	}
-
-	return content, nil
+	return &model.Text{
+		Content: content,
+		Usage: &model.Usage{
+			PromptTokens:     response.Payload.Usage.Text.PromptTokens,
+			CompletionTokens: response.Payload.Usage.Text.CompletionTokens,
+			TotalTokens:      response.Payload.Usage.Text.TotalTokens,
+		},
+	}, nil
 }

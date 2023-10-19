@@ -7,11 +7,13 @@ package service
 
 import (
 	"context"
+
+	"github.com/iimeta/iim-sdk/internal/model"
 )
 
 type (
 	IBaidu interface {
-		Text(ctx context.Context, senderId, receiverId, talkType int, text, model string, mentions ...string) (string, error)
+		Text(ctx context.Context, userId int, message *model.Message) (*model.Text, error)
 	}
 )
 

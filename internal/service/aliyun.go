@@ -8,12 +8,12 @@ package service
 import (
 	"context"
 
-	m "github.com/iimeta/iim-sdk/internal/model"
+	"github.com/iimeta/iim-sdk/internal/model"
 )
 
 type (
 	IAliyun interface {
-		Text(ctx context.Context, userId int, model, prompt string) (*m.Text, error)
+		Text(ctx context.Context, userId int, message *model.Message) (*model.Text, error)
 	}
 )
 

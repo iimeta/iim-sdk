@@ -92,22 +92,23 @@ type SparkReq struct {
 	Payload   Payload   `json:"payload"`
 }
 type SparkRes struct {
+	Content string  `json:"content"`
 	Header  Header  `json:"header"`
 	Payload Payload `json:"payload"`
 }
 
-func SparkChat(ctx context.Context, model, uid string, text []Text, retry ...int) (string, error) {
+func SparkChat(ctx context.Context, model, uid string, text []Text, retry ...int) (*SparkRes, error) {
 
 	app_id, err := config.Get(ctx, "xfyun.spark.app_id")
 	if err != nil {
 		logger.Error(ctx, err)
-		return "", err
+		return nil, err
 	}
 
 	domain, err := config.Get(ctx, "xfyun.spark.domain")
 	if err != nil {
 		logger.Error(ctx, err)
-		return "", err
+		return nil, err
 	}
 
 	max_tokens := config.GetInt(ctx, "xfyun.spark.max_tokens")
@@ -134,7 +135,7 @@ func SparkChat(ctx context.Context, model, uid string, text []Text, retry ...int
 	data, err := gjson.Marshal(sparkReq)
 	if err != nil {
 		logger.Error(ctx, err)
-		return "", err
+		return nil, err
 	}
 
 	url := getAuthorizationUrl(ctx)
@@ -167,18 +168,19 @@ func SparkChat(ctx context.Context, model, uid string, text []Text, retry ...int
 			err := gjson.Unmarshal(message, &sparkRes)
 			if err != nil {
 				logger.Error(ctx, err)
-				return "", err
+				return nil, err
 			}
 
 			if sparkRes.Header.Code != 0 {
-				return "", errors.New(gjson.MustEncodeString(sparkRes))
+				return nil, errors.New(gjson.MustEncodeString(sparkRes))
 			}
 
 			responseContent += sparkRes.Payload.Choices.Text[0].Content
 
 			if sparkRes.Header.Status == 2 {
 				logger.Infof(ctx, "responseContent: %s", responseContent)
-				return responseContent, nil
+				sparkRes.Content = responseContent
+				return sparkRes, nil
 			}
 		}
 	}

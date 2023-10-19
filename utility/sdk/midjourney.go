@@ -16,24 +16,24 @@ import (
 	"time"
 )
 
-func MidjourneyProxy(ctx context.Context, prompt string) (string, *model.Image, string, error) {
+func MidjourneyProxy(ctx context.Context, prompt string) (*model.Image, error) {
 
 	api_secret, err := config.Get(ctx, "midjourney.midjourney_proxy.api_secret")
 	if err != nil {
 		logger.Error(ctx, err)
-		return "", nil, "", err
+		return nil, err
 	}
 
 	api_secret_header, err := config.Get(ctx, "midjourney.midjourney_proxy.api_secret_header")
 	if err != nil {
 		logger.Error(ctx, err)
-		return "", nil, "", err
+		return nil, err
 	}
 
 	imagine_url, err := config.Get(ctx, "midjourney.midjourney_proxy.imagine_url")
 	if err != nil {
 		logger.Error(ctx, err)
-		return "", nil, "", err
+		return nil, err
 	}
 
 	header := make(map[string]string)
@@ -61,25 +61,27 @@ func MidjourneyProxy(ctx context.Context, prompt string) (string, *model.Image, 
 			imageInfo, midjourneyProxyFetchRes, err = MidjourneyProxyFetch(ctx, midjourneyProxyImagineRes.Result)
 			if err != nil {
 				logger.Error(ctx, err)
-				return "", nil, "", gerror.Newf("Prompt: %s, Result: %s", prompt, err.Error())
+				return nil, gerror.Newf("Prompt: %s, Result: %s", prompt, err.Error())
 			}
 
 			logger.Infof(ctx, "midjourneyProxyFetchRes: %s", gjson.MustEncodeString(midjourneyProxyFetchRes))
 
 			if midjourneyProxyFetchRes.Status == "SUCCESS" {
-				return midjourneyProxyFetchRes.Id, imageInfo, midjourneyProxyFetchRes.ImageUrl, nil
+				imageInfo.Url = midjourneyProxyFetchRes.ImageUrl
+				imageInfo.TaskId = midjourneyProxyFetchRes.Id
+				return imageInfo, nil
 			} else if midjourneyProxyFetchRes.Status == "FAILURE" || midjourneyProxyFetchRes.FailReason != "" {
-				return "", nil, "", errors.New(midjourneyProxyFetchRes.FailReason)
+				return nil, errors.New(midjourneyProxyFetchRes.FailReason)
 			}
 		}
 	} else if midjourneyProxyImagineRes.Description != "" {
-		return "", nil, "", gerror.Newf("Prompt: %s, Result: %s\"%s\"", prompt, midjourneyProxyImagineRes.Description, midjourneyProxyImagineRes.Properties.BannedWord)
+		return nil, gerror.Newf("Prompt: %s, Result: %s\"%s\"", prompt, midjourneyProxyImagineRes.Description, midjourneyProxyImagineRes.Properties.BannedWord)
 	} else {
-		return "", nil, "", errors.New("未知错误, 请联系作者处理...")
+		return nil, errors.New("未知错误, 请联系作者处理...")
 	}
 }
 
-func MidjourneyProxyChanges(ctx context.Context, prompt string) (string, *model.Image, string, error) {
+func MidjourneyProxyChanges(ctx context.Context, prompt string) (*model.Image, error) {
 
 	prompts := gstr.Split(prompt, "::")
 	midjourneyProxyChangeReq := &model.MidjourneyProxyChangeReq{
@@ -99,21 +101,23 @@ func MidjourneyProxyChanges(ctx context.Context, prompt string) (string, *model.
 			imageInfo, midjourneyProxyFetchRes, err = MidjourneyProxyFetch(ctx, midjourneyProxyChangeRes.Result)
 			if err != nil {
 				logger.Error(ctx, err)
-				return "", nil, "", gerror.Newf("Prompt: %s, Result: %s", prompt, err.Error())
+				return nil, gerror.Newf("Prompt: %s, Result: %s", prompt, err.Error())
 			}
 
 			logger.Infof(ctx, "midjourneyProxyFetchRes: %s", gjson.MustEncodeString(midjourneyProxyFetchRes))
 
 			if midjourneyProxyFetchRes.Status == "SUCCESS" {
-				return midjourneyProxyFetchRes.Id, imageInfo, midjourneyProxyFetchRes.ImageUrl, nil
+				imageInfo.Url = midjourneyProxyFetchRes.ImageUrl
+				imageInfo.TaskId = midjourneyProxyFetchRes.Id
+				return imageInfo, nil
 			} else if midjourneyProxyFetchRes.Status == "FAILURE" || midjourneyProxyFetchRes.FailReason != "" {
-				return "", nil, "", errors.New(midjourneyProxyFetchRes.FailReason)
+				return nil, errors.New(midjourneyProxyFetchRes.FailReason)
 			}
 		}
 	} else if midjourneyProxyChangeRes.Description != "" {
-		return "", nil, "", gerror.Newf("Prompt: %s, Result: %s\"%s\"", prompt, midjourneyProxyChangeRes.Description, midjourneyProxyChangeRes.Properties.BannedWord)
+		return nil, gerror.Newf("Prompt: %s, Result: %s\"%s\"", prompt, midjourneyProxyChangeRes.Description, midjourneyProxyChangeRes.Properties.BannedWord)
 	} else {
-		return "", nil, "", errors.New("未知错误, 请联系作者处理...")
+		return nil, errors.New("未知错误, 请联系作者处理...")
 	}
 }
 

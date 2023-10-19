@@ -27,33 +27,16 @@ func New() service.IOpenAI {
 	return &sOpenAI{}
 }
 
-func (s *sOpenAI) Text(ctx context.Context, senderId, receiverId, talkType int, text, model string, isOpenContext int, mentions ...string) (string, error) {
-
-	if talkType == 2 {
-		content := gstr.Split(text, " ")
-		if len(content) > 1 {
-			text = content[1]
-		} else {
-			content = gstr.Split(text, " ")
-			if len(content) > 1 {
-				text = content[1]
-			}
-		}
-	}
-
-	if len(text) == 0 {
-		return "", nil
-	}
+func (s *sOpenAI) Text(ctx context.Context, userId int, message *model.Message) (*model.Text, error) {
 
 	messages := make([]openai.ChatCompletionMessage, 0)
 
-	// 开启上下文
-	if isOpenContext == 0 {
+	if message.IsWithContext {
 
-		reply, err := redis.LRange(ctx, fmt.Sprintf(consts.CHAT_MESSAGES_PREFIX_KEY, receiverId, senderId), 0, -1)
+		reply, err := redis.LRange(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), 0, -1)
 		if err != nil {
 			logger.Error(ctx, err)
-			return "", err
+			return nil, err
 		}
 
 		messagesStr := reply.Strings()
@@ -61,12 +44,12 @@ func (s *sOpenAI) Text(ctx context.Context, senderId, receiverId, talkType int, 
 			b, err := gjson.Marshal(sdk.ChatMessageRoleSystem)
 			if err != nil {
 				logger.Error(ctx, err)
-				return "", err
+				return nil, err
 			}
-			_, err = redis.RPush(ctx, fmt.Sprintf(consts.CHAT_MESSAGES_PREFIX_KEY, receiverId, senderId), b)
+			_, err = redis.RPush(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), b)
 			if err != nil {
 				logger.Error(ctx, err)
-				return "", err
+				return nil, err
 			}
 			messages = append(messages, sdk.ChatMessageRoleSystem)
 		}
@@ -83,12 +66,12 @@ func (s *sOpenAI) Text(ctx context.Context, senderId, receiverId, talkType int, 
 				b, err := gjson.Marshal(sdk.ChatMessageRoleSystem)
 				if err != nil {
 					logger.Error(ctx, err)
-					return "", err
+					return nil, err
 				}
-				_, err = redis.LPush(ctx, fmt.Sprintf(consts.CHAT_MESSAGES_PREFIX_KEY, receiverId, senderId), b)
+				_, err = redis.LPush(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), b)
 				if err != nil {
 					logger.Error(ctx, err)
-					return "", err
+					return nil, err
 				}
 				messages = append(messages, sdk.ChatMessageRoleSystem)
 			}
@@ -101,20 +84,20 @@ func (s *sOpenAI) Text(ctx context.Context, senderId, receiverId, talkType int, 
 
 	chatCompletionMessage := openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,
-		Content: text,
+		Content: message.Prompt,
 	}
 
 	b, err := gjson.Marshal(chatCompletionMessage)
 	if err != nil {
 		logger.Error(ctx, err)
-		return "", err
+		return nil, err
 	}
 
 	logger.Infof(ctx, "chatCompletionMessage: %s", string(b))
 
 	messages = append(messages, chatCompletionMessage)
 
-	response, err := sdk.ChatGPTChatCompletion(ctx, model, messages)
+	response, err := sdk.ChatGPTChatCompletion(ctx, message.Model, messages)
 
 	if err != nil {
 		logger.Error(ctx, err)
@@ -122,23 +105,23 @@ func (s *sOpenAI) Text(ctx context.Context, senderId, receiverId, talkType int, 
 		if gstr.Contains(err.Error(), "Please reduce the length of the messages") {
 			start := int64(len(messages) / 2)
 			if start > 1 {
-				err = redis.LTrim(ctx, fmt.Sprintf(consts.CHAT_MESSAGES_PREFIX_KEY, receiverId, senderId), start, -1)
+				err = redis.LTrim(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), start, -1)
 				if err != nil {
 					logger.Error(ctx, err)
-					return "", err
+					return nil, err
 				} else {
-					return s.Text(ctx, senderId, receiverId, talkType, text, model, isOpenContext, mentions...)
+					return s.Text(ctx, userId, message)
 				}
 			}
 		}
 
-		return "", err
+		return nil, err
 	}
 
-	_, err = redis.RPush(ctx, fmt.Sprintf(consts.CHAT_MESSAGES_PREFIX_KEY, receiverId, senderId), b)
+	_, err = redis.RPush(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), b)
 	if err != nil {
 		logger.Error(ctx, err)
-		return "", err
+		return nil, err
 	}
 
 	content := response.Choices[0].Message.Content
@@ -151,45 +134,28 @@ func (s *sOpenAI) Text(ctx context.Context, senderId, receiverId, talkType int, 
 	b, err = json.Marshal(chatCompletionMessage)
 	if err != nil {
 		logger.Error(ctx, err)
-		return "", err
+		return nil, err
 	}
 
-	_, err = redis.RPush(ctx, fmt.Sprintf(consts.CHAT_MESSAGES_PREFIX_KEY, receiverId, senderId), b)
+	_, err = redis.RPush(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), b)
 	if err != nil {
 		logger.Error(ctx, err)
-		return "", err
+		return nil, err
 	}
 
-	if talkType == 2 {
-		for i, mention := range mentions {
-			if i == 0 {
-				content += "\n"
-			} else {
-				content += " "
-			}
-			content += "@" + mention
-		}
-	}
-
-	return content, err
+	return &model.Text{
+		Content: content,
+		Usage: &model.Usage{
+			PromptTokens:     response.Usage.PromptTokens,
+			CompletionTokens: response.Usage.CompletionTokens,
+			TotalTokens:      response.Usage.TotalTokens,
+		},
+	}, nil
 }
 
-func (s *sOpenAI) Image(ctx context.Context, senderId, receiverId, talkType int, text string, mentions ...string) (*model.Image, error) {
+func (s *sOpenAI) Image(ctx context.Context, userId int, message *model.Message) (imageInfo *model.Image, err error) {
 
-	if talkType == 2 {
-		content := gstr.Split(text, " ")
-		if len(content) > 1 {
-			text = content[1]
-		}
-	}
-
-	if len(text) == 0 {
-		return nil, nil
-	}
-
-	logger.Infof(ctx, "Image text: %s", text)
-
-	imgBase64, err := sdk.GenImageBase64(ctx, text)
+	imgBase64, err := sdk.GenImageBase64(ctx, message.Prompt)
 	if err != nil {
 		logger.Error(ctx, err)
 		return nil, err
@@ -201,7 +167,7 @@ func (s *sOpenAI) Image(ctx context.Context, senderId, receiverId, talkType int,
 		return nil, err
 	}
 
-	imageInfo, err := service.File().SaveImage(ctx, imgBytes, ".png")
+	imageInfo, err = service.File().SaveImage(ctx, imgBytes, ".png")
 	if err != nil {
 		logger.Error(ctx, err)
 		return nil, err
@@ -213,12 +179,7 @@ func (s *sOpenAI) Image(ctx context.Context, senderId, receiverId, talkType int,
 		return nil, err
 	}
 
-	url := domain.String() + "/" + imageInfo.FilePath
+	imageInfo.Url = domain.String() + "/" + imageInfo.FilePath
 
-	return &model.Image{
-		Url:    url,
-		Width:  imageInfo.Width,
-		Height: imageInfo.Height,
-		Size:   imageInfo.Size,
-	}, nil
+	return imageInfo, nil
 }

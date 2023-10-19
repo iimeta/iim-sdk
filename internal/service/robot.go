@@ -16,8 +16,8 @@ type (
 		GetRobotByUserId(ctx context.Context, userId int) (*model.Robot, error)
 		GetRobotsByUserIds(ctx context.Context, userId ...int) ([]*model.Robot, error)
 		IsNeedRobotReply(ctx context.Context, userId ...int) ([]*model.Robot, bool)
-		Text(ctx context.Context, robotInfo *model.Robot, prompt string, isWithContext bool) (string, error)
-		Image(ctx context.Context, robotInfo *model.Robot, prompt string, isSaveImage bool) (*model.Image, error)
+		Text(ctx context.Context, robotInfo *model.Robot, userId int, message *model.Message) (*model.Text, error)
+		Image(ctx context.Context, robotInfo *model.Robot, userId int, message *model.Message) (*model.Image, error)
 	}
 )
 

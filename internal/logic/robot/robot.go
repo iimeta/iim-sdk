@@ -2,19 +2,13 @@ package robot
 
 import (
 	"context"
-	"github.com/gogf/gf/v2/encoding/gjson"
+	"github.com/iimeta/iim-sdk/internal/consts"
 	"github.com/iimeta/iim-sdk/internal/dao"
 	"github.com/iimeta/iim-sdk/internal/errors"
-	"github.com/iimeta/iim-sdk/internal/logic/aliyun"
-	"github.com/iimeta/iim-sdk/internal/logic/baidu"
-	"github.com/iimeta/iim-sdk/internal/logic/midjourney"
-	"github.com/iimeta/iim-sdk/internal/logic/openai"
-	"github.com/iimeta/iim-sdk/internal/logic/xfyun"
 	"github.com/iimeta/iim-sdk/internal/model"
 	"github.com/iimeta/iim-sdk/internal/service"
 	"github.com/iimeta/iim-sdk/utility/logger"
 	"go.mongodb.org/mongo-driver/mongo"
-	"strings"
 )
 
 type sRobot struct{}
@@ -41,18 +35,14 @@ func (s *sRobot) GetRobotByUserId(ctx context.Context, userId int) (*model.Robot
 
 	return &model.Robot{
 		UserId:    robot.UserId,
-		RobotName: robot.RobotName,
-		Describe:  robot.Describe,
-		Logo:      robot.Logo,
 		IsTalk:    robot.IsTalk,
 		Status:    robot.Status,
 		Type:      robot.Type,
-		Company:   robot.Company,
+		Corp:      robot.Corp,
 		Model:     robot.Model,
 		ModelType: robot.ModelType,
 		Role:      robot.Role,
 		Prompt:    robot.Prompt,
-		MsgType:   robot.MsgType,
 		Proxy:     robot.Proxy,
 		CreatedAt: robot.CreatedAt,
 		UpdatedAt: robot.UpdatedAt,
@@ -75,18 +65,14 @@ func (s *sRobot) GetRobotsByUserIds(ctx context.Context, userId ...int) ([]*mode
 	for _, robot := range robotList {
 		robots = append(robots, &model.Robot{
 			UserId:    robot.UserId,
-			RobotName: robot.RobotName,
-			Describe:  robot.Describe,
-			Logo:      robot.Logo,
 			IsTalk:    robot.IsTalk,
 			Status:    robot.Status,
 			Type:      robot.Type,
-			Company:   robot.Company,
+			Corp:      robot.Corp,
 			Model:     robot.Model,
 			ModelType: robot.ModelType,
 			Role:      robot.Role,
 			Prompt:    robot.Prompt,
-			MsgType:   robot.MsgType,
 			Proxy:     robot.Proxy,
 			CreatedAt: robot.CreatedAt,
 			UpdatedAt: robot.UpdatedAt,
@@ -112,47 +98,30 @@ func (s *sRobot) IsNeedRobotReply(ctx context.Context, userId ...int) ([]*model.
 	return robots, true
 }
 
-func RobotReply(ctx context.Context, robotInfo *model.Robot, text string, isOpenContext int, mentions ...string) {
+func (s *sRobot) Text(ctx context.Context, robotInfo *model.Robot, userId int, message *model.Message) (*model.Text, error) {
 
-	logger.Info(ctx, gjson.MustEncodeString(robotInfo))
-
-	text = strings.TrimSpace(text)
-
-	switch robotInfo.Company {
-	case "OpenAI":
-		switch robotInfo.ModelType {
-		case "chat":
-			openai.OpenAI.Chat(ctx, senderId, receiverId, talkType, text, robotInfo.Model, isOpenContext, mentions...)
-		case "image":
-			openai.OpenAI.Image(ctx, senderId, receiverId, talkType, text, mentions...)
-		}
-	case "Baidu":
-		switch robotInfo.ModelType {
-		case "chat":
-			baidu.ErnieBot.Chat(ctx, senderId, receiverId, talkType, text, robotInfo.Model, mentions...)
-		}
-	case "Xfyun":
-		switch robotInfo.ModelType {
-		case "chat":
-			xfyun.Spark.Chat(ctx, senderId, receiverId, talkType, text, robotInfo.Model, mentions...)
-		}
-	case "Aliyun":
-		switch robotInfo.ModelType {
-		case "chat":
-			aliyun.Aliyun.Chat(ctx, senderId, receiverId, talkType, text, robotInfo.Model, mentions...)
-		}
-	case "Midjourney":
-		switch robotInfo.ModelType {
-		case "image":
-			midjourney.Midjourney.Image(ctx, senderId, receiverId, talkType, text, robotInfo.Proxy)
-		}
+	switch robotInfo.Corp {
+	case consts.CORP_OPENAI:
+		return service.OpenAI().Text(ctx, userId, message)
+	case consts.CORP_BAIDU:
+		return service.Baidu().Text(ctx, userId, message)
+	case consts.CORP_XFYUN:
+		return service.Xfyun().Text(ctx, userId, message)
+	case consts.CORP_ALIYUN:
+		return service.Aliyun().Text(ctx, userId, message)
 	}
+
+	return nil, nil
 }
 
-func (s *sRobot) Text(ctx context.Context, robotInfo *model.Robot, prompt string, isWithContext bool) (string, error) {
-	return "", nil
-}
+func (s *sRobot) Image(ctx context.Context, robotInfo *model.Robot, userId int, message *model.Message) (*model.Image, error) {
 
-func (s *sRobot) Image(ctx context.Context, robotInfo *model.Robot, prompt string, isSaveImage bool) (*model.Image, error) {
+	switch robotInfo.Corp {
+	case consts.CORP_OPENAI:
+		return service.OpenAI().Image(ctx, userId, message)
+	case consts.CORP_MIDJOURNEY:
+		return service.Midjourney().Image(ctx, userId, message)
+	}
+
 	return nil, nil
 }

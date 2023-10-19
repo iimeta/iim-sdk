@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/iimeta/iim-sdk/internal/consts"
-	m "github.com/iimeta/iim-sdk/internal/model"
+	"github.com/iimeta/iim-sdk/internal/model"
 	"github.com/iimeta/iim-sdk/internal/service"
 	"github.com/iimeta/iim-sdk/utility/logger"
 	"github.com/iimeta/iim-sdk/utility/sdk"
@@ -22,29 +22,31 @@ func New() service.IAliyun {
 	return &sAliyun{}
 }
 
-func (s *sAliyun) Text(ctx context.Context, userId int, model, prompt string) (*m.Text, error) {
+func (s *sAliyun) Text(ctx context.Context, userId int, message *model.Message) (*model.Text, error) {
 
 	messages := make([]sdk.QwenChatCompletionMessage, 0)
 
-	reply, err := g.Redis().LRange(ctx, fmt.Sprintf(consts.CHAT_MESSAGES_PREFIX_KEY, model, userId), 0, -1)
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
-
-	messagesStr := reply.Strings()
-
-	for _, str := range messagesStr {
-		qwenChatCompletionMessage := sdk.QwenChatCompletionMessage{}
-		if err := json.Unmarshal([]byte(str), &qwenChatCompletionMessage); err != nil {
+	if message.IsWithContext {
+		reply, err := g.Redis().LRange(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), 0, -1)
+		if err != nil {
 			logger.Error(ctx, err)
-			continue
+			return nil, err
 		}
-		messages = append(messages, qwenChatCompletionMessage)
+
+		messagesStr := reply.Strings()
+
+		for _, str := range messagesStr {
+			qwenChatCompletionMessage := sdk.QwenChatCompletionMessage{}
+			if err := json.Unmarshal([]byte(str), &qwenChatCompletionMessage); err != nil {
+				logger.Error(ctx, err)
+				continue
+			}
+			messages = append(messages, qwenChatCompletionMessage)
+		}
 	}
 
 	qwenChatCompletionMessage := sdk.QwenChatCompletionMessage{
-		User: prompt,
+		User: message.Prompt,
 	}
 
 	b, err := json.Marshal(qwenChatCompletionMessage)
@@ -57,7 +59,7 @@ func (s *sAliyun) Text(ctx context.Context, userId int, model, prompt string) (*
 
 	messages = append(messages, qwenChatCompletionMessage)
 
-	response, err := sdk.QwenChatCompletion(ctx, model, messages)
+	response, err := sdk.QwenChatCompletion(ctx, message.Model, messages)
 
 	if err != nil {
 		logger.Error(ctx, err)
@@ -74,13 +76,18 @@ func (s *sAliyun) Text(ctx context.Context, userId int, model, prompt string) (*
 		return nil, err
 	}
 
-	_, err = g.Redis().RPush(ctx, fmt.Sprintf(consts.CHAT_MESSAGES_PREFIX_KEY, model, userId), b)
+	_, err = g.Redis().RPush(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), b)
 	if err != nil {
 		logger.Error(ctx, err)
 		return nil, err
 	}
 
-	return &m.Text{
+	return &model.Text{
 		Content: content,
+		Usage: &model.Usage{
+			PromptTokens:     response.Usage.InputTokens,
+			CompletionTokens: response.Usage.OutputTokens,
+			TotalTokens:      response.Usage.InputTokens + response.Usage.OutputTokens,
+		},
 	}, nil
 }
