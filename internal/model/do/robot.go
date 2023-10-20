@@ -18,6 +18,7 @@ type Robot struct {
 	Role       string `bson:"role,omitempty"`       // 角色
 	Prompt     string `bson:"prompt,omitempty"`     // 提示
 	Proxy      string `bson:"proxy,omitempty"`      // 代理
+	Key        string `bson:"key,omitempty"`        // 密钥
 	CreatedAt  int64  `bson:"created_at,omitempty"` // 创建时间
 	UpdatedAt  int64  `bson:"updated_at,omitempty"` // 更新时间
 }

@@ -44,6 +44,7 @@ func (s *sRobot) GetRobotByUserId(ctx context.Context, userId int) (*model.Robot
 		Role:      robot.Role,
 		Prompt:    robot.Prompt,
 		Proxy:     robot.Proxy,
+		Key:       robot.Key,
 		CreatedAt: robot.CreatedAt,
 		UpdatedAt: robot.UpdatedAt,
 	}, nil
@@ -61,7 +62,7 @@ func (s *sRobot) GetRobotsByUserIds(ctx context.Context, userId ...int) ([]*mode
 		return nil, nil
 	}
 
-	robots := make([]*model.Robot, len(robotList))
+	robots := make([]*model.Robot, 0)
 	for _, robot := range robotList {
 		robots = append(robots, &model.Robot{
 			UserId:    robot.UserId,
@@ -74,6 +75,7 @@ func (s *sRobot) GetRobotsByUserIds(ctx context.Context, userId ...int) ([]*mode
 			Role:      robot.Role,
 			Prompt:    robot.Prompt,
 			Proxy:     robot.Proxy,
+			Key:       robot.Key,
 			CreatedAt: robot.CreatedAt,
 			UpdatedAt: robot.UpdatedAt,
 		})

@@ -67,6 +67,9 @@ func MidjourneyProxy(ctx context.Context, prompt string) (*model.Image, error) {
 			logger.Infof(ctx, "midjourneyProxyFetchRes: %s", gjson.MustEncodeString(midjourneyProxyFetchRes))
 
 			if midjourneyProxyFetchRes.Status == "SUCCESS" {
+				if imageInfo == nil {
+					imageInfo = new(model.Image)
+				}
 				imageInfo.Url = midjourneyProxyFetchRes.ImageUrl
 				imageInfo.TaskId = midjourneyProxyFetchRes.Id
 				return imageInfo, nil
@@ -107,6 +110,9 @@ func MidjourneyProxyChanges(ctx context.Context, prompt string) (*model.Image, e
 			logger.Infof(ctx, "midjourneyProxyFetchRes: %s", gjson.MustEncodeString(midjourneyProxyFetchRes))
 
 			if midjourneyProxyFetchRes.Status == "SUCCESS" {
+				if imageInfo == nil {
+					imageInfo = new(model.Image)
+				}
 				imageInfo.Url = midjourneyProxyFetchRes.ImageUrl
 				imageInfo.TaskId = midjourneyProxyFetchRes.Id
 				return imageInfo, nil

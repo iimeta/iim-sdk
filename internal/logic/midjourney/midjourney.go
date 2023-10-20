@@ -39,7 +39,7 @@ func (s *sMidjourney) Image(ctx context.Context, userId int, message *model.Mess
 		return nil, err
 	}
 
-	if imageInfo == nil {
+	if imageInfo.Size == 0 {
 
 		cdn_url, err := config.Get(ctx, "midjourney.cdn_url")
 		if err != nil {
@@ -49,11 +49,9 @@ func (s *sMidjourney) Image(ctx context.Context, userId int, message *model.Mess
 
 		if cdn_url.String() != "" {
 
-			imageInfo = &model.Image{
-				Size:   1024 * 1024 * 5,
-				Width:  512,
-				Height: 512,
-			}
+			imageInfo.Size = 1024 * 1024 * 5
+			imageInfo.Width = 512
+			imageInfo.Height = 512
 
 			_ = grpool.AddWithRecover(ctx, func(ctx context.Context) {
 
