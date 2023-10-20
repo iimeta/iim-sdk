@@ -100,30 +100,30 @@ func (s *sRobot) IsNeedRobotReply(ctx context.Context, userId ...int) ([]*model.
 	return robots, true
 }
 
-func (s *sRobot) Text(ctx context.Context, robotInfo *model.Robot, userId int, message *model.Message) (*model.Text, error) {
+func (s *sRobot) Text(ctx context.Context, robot *model.Robot, message *model.Message) (*model.Text, error) {
 
-	switch robotInfo.Corp {
+	switch robot.Corp {
 	case consts.CORP_OPENAI:
-		return service.OpenAI().Text(ctx, userId, message)
+		return service.OpenAI().Text(ctx, robot, message)
 	case consts.CORP_BAIDU:
-		return service.Baidu().Text(ctx, userId, message)
+		return service.Baidu().Text(ctx, robot, message)
 	case consts.CORP_XFYUN:
-		return service.Xfyun().Text(ctx, userId, message)
+		return service.Xfyun().Text(ctx, robot, message)
 	case consts.CORP_ALIYUN:
-		return service.Aliyun().Text(ctx, userId, message)
+		return service.Aliyun().Text(ctx, robot, message)
+	default:
+		return nil, errors.New("Unknown Corp: " + robot.Corp)
 	}
-
-	return nil, nil
 }
 
-func (s *sRobot) Image(ctx context.Context, robotInfo *model.Robot, userId int, message *model.Message) (*model.Image, error) {
+func (s *sRobot) Image(ctx context.Context, robot *model.Robot, message *model.Message) (*model.Image, error) {
 
-	switch robotInfo.Corp {
+	switch robot.Corp {
 	case consts.CORP_OPENAI:
-		return service.OpenAI().Image(ctx, userId, message)
+		return service.OpenAI().Image(ctx, robot, message)
 	case consts.CORP_MIDJOURNEY:
-		return service.Midjourney().Image(ctx, userId, message)
+		return service.Midjourney().Image(ctx, robot, message)
+	default:
+		return nil, errors.New("Unknown Corp: " + robot.Corp)
 	}
-
-	return nil, nil
 }

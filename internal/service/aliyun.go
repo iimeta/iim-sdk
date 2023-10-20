@@ -13,7 +13,7 @@ import (
 
 type (
 	IAliyun interface {
-		Text(ctx context.Context, userId int, message *model.Message) (*model.Text, error)
+		Text(ctx context.Context, robot *model.Robot, message *model.Message) (*model.Text, error)
 	}
 )
 

@@ -13,8 +13,8 @@ import (
 
 type (
 	IOpenAI interface {
-		Text(ctx context.Context, userId int, message *model.Message) (*model.Text, error)
-		Image(ctx context.Context, userId int, message *model.Message) (imageInfo *model.Image, err error)
+		Text(ctx context.Context, robot *model.Robot, message *model.Message) (*model.Text, error)
+		Image(ctx context.Context, robot *model.Robot, message *model.Message) (imageInfo *model.Image, err error)
 	}
 )
 

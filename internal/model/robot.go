@@ -38,12 +38,9 @@ type Image struct {
 }
 
 type Message struct {
-	Corp          string `json:"corp"`            // 公司
-	Model         string `json:"model"`           // 模型
-	ModelType     string `json:"model_type"`      // 模型类型, 文生文: text, 画图: image
 	Prompt        string `json:"prompt"`          // 提示
-	Key           string `json:"key"`             // 密钥
-	Proxy         string `json:"proxy"`           // 代理
+	Stype         any    `json:"stype"`           // 会话类型
+	Sid           any    `json:"sid"`             // 会话ID
 	IsWithContext bool   `json:"is_with_context"` // 是否带上下文
 	IsSave        bool   `json:"is_save"`         // 是否保存
 }

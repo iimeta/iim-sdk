@@ -3,16 +3,12 @@ package openai
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
-	"fmt"
 	"github.com/gogf/gf/v2/encoding/gjson"
 	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/iimeta/iim-sdk/internal/config"
-	"github.com/iimeta/iim-sdk/internal/consts"
 	"github.com/iimeta/iim-sdk/internal/model"
 	"github.com/iimeta/iim-sdk/internal/service"
 	"github.com/iimeta/iim-sdk/utility/logger"
-	"github.com/iimeta/iim-sdk/utility/redis"
 	"github.com/iimeta/iim-sdk/utility/sdk"
 	"github.com/sashabaranov/go-openai"
 )
@@ -27,26 +23,16 @@ func New() service.IOpenAI {
 	return &sOpenAI{}
 }
 
-func (s *sOpenAI) Text(ctx context.Context, userId int, message *model.Message) (*model.Text, error) {
+func (s *sOpenAI) Text(ctx context.Context, robot *model.Robot, message *model.Message) (*model.Text, error) {
 
 	messages := make([]openai.ChatCompletionMessage, 0)
 
 	if message.IsWithContext {
 
-		reply, err := redis.LRange(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), 0, -1)
-		if err != nil {
-			logger.Error(ctx, err)
-			return nil, err
-		}
+		contexts := service.Common().GetMessageContext(ctx, robot, message)
 
-		messagesStr := reply.Strings()
-		if len(messagesStr) == 0 {
-			b, err := gjson.Marshal(sdk.ChatMessageRoleSystem)
-			if err != nil {
-				logger.Error(ctx, err)
-				return nil, err
-			}
-			_, err = redis.RPush(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), b)
+		if len(contexts) == 0 {
+			err := service.Common().SaveMessageContext(ctx, robot, message, sdk.ChatMessageRoleSystem)
 			if err != nil {
 				logger.Error(ctx, err)
 				return nil, err
@@ -54,21 +40,16 @@ func (s *sOpenAI) Text(ctx context.Context, userId int, message *model.Message) 
 			messages = append(messages, sdk.ChatMessageRoleSystem)
 		}
 
-		for i, str := range messagesStr {
+		for i, context := range contexts {
 
 			chatCompletionMessage := openai.ChatCompletionMessage{}
-			if err := gjson.Unmarshal([]byte(str), &chatCompletionMessage); err != nil {
+			if err := gjson.Unmarshal([]byte(context), &chatCompletionMessage); err != nil {
 				logger.Error(ctx, err)
 				continue
 			}
 
 			if i == 0 && chatCompletionMessage.Role != openai.ChatMessageRoleSystem {
-				b, err := gjson.Marshal(sdk.ChatMessageRoleSystem)
-				if err != nil {
-					logger.Error(ctx, err)
-					return nil, err
-				}
-				_, err = redis.LPush(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), b)
+				err := service.Common().SaveMessageContext(ctx, robot, message, sdk.ChatMessageRoleSystem)
 				if err != nil {
 					logger.Error(ctx, err)
 					return nil, err
@@ -87,17 +68,9 @@ func (s *sOpenAI) Text(ctx context.Context, userId int, message *model.Message) 
 		Content: message.Prompt,
 	}
 
-	b, err := gjson.Marshal(chatCompletionMessage)
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
-
-	logger.Infof(ctx, "chatCompletionMessage: %s", string(b))
-
 	messages = append(messages, chatCompletionMessage)
 
-	response, err := sdk.ChatGPTChatCompletion(ctx, message.Model, messages)
+	response, err := sdk.ChatGPTChatCompletion(ctx, robot.Model, messages)
 
 	if err != nil {
 		logger.Error(ctx, err)
@@ -105,12 +78,12 @@ func (s *sOpenAI) Text(ctx context.Context, userId int, message *model.Message) 
 		if gstr.Contains(err.Error(), "Please reduce the length of the messages") {
 			start := int64(len(messages) / 2)
 			if start > 1 {
-				err = redis.LTrim(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), start, -1)
+				err = service.Common().TrimMessageContext(ctx, robot, message, start, -1)
 				if err != nil {
 					logger.Error(ctx, err)
 					return nil, err
 				} else {
-					return s.Text(ctx, userId, message)
+					return s.Text(ctx, robot, message)
 				}
 			}
 		}
@@ -118,7 +91,7 @@ func (s *sOpenAI) Text(ctx context.Context, userId int, message *model.Message) 
 		return nil, err
 	}
 
-	_, err = redis.RPush(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), b)
+	err = service.Common().SaveMessageContext(ctx, robot, message, chatCompletionMessage)
 	if err != nil {
 		logger.Error(ctx, err)
 		return nil, err
@@ -131,13 +104,7 @@ func (s *sOpenAI) Text(ctx context.Context, userId int, message *model.Message) 
 		Content: content,
 	}
 
-	b, err = json.Marshal(chatCompletionMessage)
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
-
-	_, err = redis.RPush(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), b)
+	err = service.Common().SaveMessageContext(ctx, robot, message, chatCompletionMessage)
 	if err != nil {
 		logger.Error(ctx, err)
 		return nil, err
@@ -153,7 +120,7 @@ func (s *sOpenAI) Text(ctx context.Context, userId int, message *model.Message) 
 	}, nil
 }
 
-func (s *sOpenAI) Image(ctx context.Context, userId int, message *model.Message) (imageInfo *model.Image, err error) {
+func (s *sOpenAI) Image(ctx context.Context, robot *model.Robot, message *model.Message) (imageInfo *model.Image, err error) {
 
 	imgBase64, err := sdk.GenImageBase64(ctx, message.Prompt)
 	if err != nil {

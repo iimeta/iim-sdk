@@ -24,7 +24,7 @@ func New() service.IMidjourney {
 	return &sMidjourney{}
 }
 
-func (s *sMidjourney) Image(ctx context.Context, userId int, message *model.Message) (imageInfo *model.Image, err error) {
+func (s *sMidjourney) Image(ctx context.Context, robot *model.Robot, message *model.Message) (imageInfo *model.Image, err error) {
 
 	if gstr.HasPrefix(message.Prompt, "UPSCALE") || gstr.HasPrefix(message.Prompt, "VARIATION") {
 		imageInfo, err = sdk.MidjourneyProxyChanges(ctx, message.Prompt)

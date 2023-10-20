@@ -3,9 +3,6 @@ package aliyun
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"github.com/gogf/gf/v2/frame/g"
-	"github.com/iimeta/iim-sdk/internal/consts"
 	"github.com/iimeta/iim-sdk/internal/model"
 	"github.com/iimeta/iim-sdk/internal/service"
 	"github.com/iimeta/iim-sdk/utility/logger"
@@ -22,22 +19,17 @@ func New() service.IAliyun {
 	return &sAliyun{}
 }
 
-func (s *sAliyun) Text(ctx context.Context, userId int, message *model.Message) (*model.Text, error) {
+func (s *sAliyun) Text(ctx context.Context, robot *model.Robot, message *model.Message) (*model.Text, error) {
 
 	messages := make([]sdk.QwenChatCompletionMessage, 0)
 
 	if message.IsWithContext {
-		reply, err := g.Redis().LRange(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), 0, -1)
-		if err != nil {
-			logger.Error(ctx, err)
-			return nil, err
-		}
 
-		messagesStr := reply.Strings()
+		contexts := service.Common().GetMessageContext(ctx, robot, message)
 
-		for _, str := range messagesStr {
+		for _, context := range contexts {
 			qwenChatCompletionMessage := sdk.QwenChatCompletionMessage{}
-			if err := json.Unmarshal([]byte(str), &qwenChatCompletionMessage); err != nil {
+			if err := json.Unmarshal([]byte(context), &qwenChatCompletionMessage); err != nil {
 				logger.Error(ctx, err)
 				continue
 			}
@@ -59,7 +51,7 @@ func (s *sAliyun) Text(ctx context.Context, userId int, message *model.Message) 
 
 	messages = append(messages, qwenChatCompletionMessage)
 
-	response, err := sdk.QwenChatCompletion(ctx, message.Model, messages)
+	response, err := sdk.QwenChatCompletion(ctx, robot.Model, messages)
 
 	if err != nil {
 		logger.Error(ctx, err)
@@ -70,13 +62,7 @@ func (s *sAliyun) Text(ctx context.Context, userId int, message *model.Message) 
 
 	qwenChatCompletionMessage.Bot = content
 
-	b, err = json.Marshal(qwenChatCompletionMessage)
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
-
-	_, err = g.Redis().RPush(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), b)
+	err = service.Common().SaveMessageContext(ctx, robot, message, qwenChatCompletionMessage)
 	if err != nil {
 		logger.Error(ctx, err)
 		return nil, err

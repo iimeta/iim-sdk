@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/gogf/gf/v2/frame/g"
-	"github.com/iimeta/iim-sdk/internal/consts"
 	"github.com/iimeta/iim-sdk/internal/model"
 	"github.com/iimeta/iim-sdk/internal/service"
 	"github.com/iimeta/iim-sdk/utility/logger"
@@ -23,22 +21,17 @@ func New() service.IXfyun {
 	return &sXfyun{}
 }
 
-func (s *sXfyun) Text(ctx context.Context, userId int, message *model.Message) (*model.Text, error) {
+func (s *sXfyun) Text(ctx context.Context, robot *model.Robot, message *model.Message) (*model.Text, error) {
 
 	messages := make([]sdk.Text, 0)
 
 	if message.IsWithContext {
-		reply, err := g.Redis().LRange(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), 0, -1)
-		if err != nil {
-			logger.Error(ctx, err)
-			return nil, err
-		}
 
-		messagesStr := reply.Strings()
+		contexts := service.Common().GetMessageContext(ctx, robot, message)
 
-		for _, str := range messagesStr {
+		for _, context := range contexts {
 			textMessage := sdk.Text{}
-			if err := json.Unmarshal([]byte(str), &textMessage); err != nil {
+			if err := json.Unmarshal([]byte(context), &textMessage); err != nil {
 				logger.Error(ctx, err)
 				continue
 			}
@@ -53,22 +46,15 @@ func (s *sXfyun) Text(ctx context.Context, userId int, message *model.Message) (
 		Content: message.Prompt,
 	}
 
-	b, err := json.Marshal(textMessage)
-	if err != nil {
-		logger.Error(ctx, err)
-	}
-
-	logger.Infof(ctx, "textMessage: %s", string(b))
-
 	messages = append(messages, textMessage)
 
-	response, err := sdk.SparkChat(ctx, message.Model, fmt.Sprintf("%d", userId), messages)
+	response, err := sdk.SparkChat(ctx, robot.Model, fmt.Sprintf("%v", message.Sid), messages)
 	if err != nil {
 		logger.Error(ctx, err)
 		return nil, err
 	}
 
-	_, err = g.Redis().RPush(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), b)
+	err = service.Common().SaveMessageContext(ctx, robot, message, textMessage)
 	if err != nil {
 		logger.Error(ctx, err)
 		return nil, err
@@ -81,13 +67,7 @@ func (s *sXfyun) Text(ctx context.Context, userId int, message *model.Message) (
 		Content: content,
 	}
 
-	b, err = json.Marshal(textMessage)
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
-
-	_, err = g.Redis().RPush(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_PREFIX_KEY, message.Corp, message.ModelType, userId), b)
+	err = service.Common().SaveMessageContext(ctx, robot, message, textMessage)
 	if err != nil {
 		logger.Error(ctx, err)
 		return nil, err

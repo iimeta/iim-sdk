@@ -1,8 +1,8 @@
 package consts
 
 const (
-	// Corp:ModelType:UserId
-	MESSAGE_CONTEXT_PREFIX_KEY = "message:context:%s:%s:%d"
+	// ModelType:Stype:Sid:Robot
+	MESSAGE_CONTEXT_KEY = "message:context:%s:%v:%v:%d"
 )
 
 const (

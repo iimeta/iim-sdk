@@ -7,6 +7,7 @@ package logic
 import (
 	_ "github.com/iimeta/iim-sdk/internal/logic/aliyun"
 	_ "github.com/iimeta/iim-sdk/internal/logic/baidu"
+	_ "github.com/iimeta/iim-sdk/internal/logic/common"
 	_ "github.com/iimeta/iim-sdk/internal/logic/file"
 	_ "github.com/iimeta/iim-sdk/internal/logic/midjourney"
 	_ "github.com/iimeta/iim-sdk/internal/logic/openai"
