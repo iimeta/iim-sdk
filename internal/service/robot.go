@@ -15,18 +15,15 @@ type (
 	IRobot interface {
 		GetRobotByUserId(ctx context.Context, userId int) (*model.Robot, error)
 		GetRobotsByUserIds(ctx context.Context, userId ...int) ([]*model.Robot, error)
+		ClearMessageContext(ctx context.Context, robot *model.Robot, message *model.Message) (int64, error)
 		IsNeedRobotReply(ctx context.Context, userId ...int) ([]*model.Robot, bool)
 		Text(ctx context.Context, robot *model.Robot, message *model.Message) (*model.Text, error)
 		Image(ctx context.Context, robot *model.Robot, message *model.Message) (*model.Image, error)
 	}
-	ICommon interface {
-		ClearMessageContext(ctx context.Context, robot *model.Robot, message *model.Message) (int64, error)
-	}
 )
 
 var (
-	localRobot  IRobot
-	localCommon ICommon
+	localRobot IRobot
 )
 
 func Robot() IRobot {
@@ -38,15 +35,4 @@ func Robot() IRobot {
 
 func RegisterRobot(i IRobot) {
 	localRobot = i
-}
-
-func Common() ICommon {
-	if localCommon == nil {
-		panic("implement not found for interface ICommon, forgot register?")
-	}
-	return localCommon
-}
-
-func RegisterCommon(i ICommon) {
-	localCommon = i
 }
