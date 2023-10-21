@@ -15,6 +15,12 @@ import (
 const (
 	MODEL_TYPE_TEXT  = consts.MODEL_TYPE_TEXT
 	MODEL_TYPE_IMAGE = consts.MODEL_TYPE_IMAGE
+
+	CORP_OPENAI     = consts.CORP_OPENAI
+	CORP_BAIDU      = consts.CORP_BAIDU
+	CORP_XFYUN      = consts.CORP_XFYUN
+	CORP_ALIYUN     = consts.CORP_ALIYUN
+	CORP_MIDJOURNEY = consts.CORP_MIDJOURNEY
 )
 
 var Robot = service.Robot()

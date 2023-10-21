@@ -32,12 +32,12 @@ func (s *sMidjourney) Image(ctx context.Context, robot *model.Robot, message *mo
 		imageInfo, err = sdk.MidjourneyProxy(ctx, message.Prompt)
 	}
 
-	logger.Infof(ctx, "Midjourney Image URL: %s", imageInfo.Url)
-
-	if err != nil || imageInfo.Url == "" {
+	if err != nil {
 		logger.Error(ctx, err)
 		return nil, err
 	}
+
+	logger.Infof(ctx, "Midjourney Image URL: %s", imageInfo.Url)
 
 	if imageInfo.Size == 0 {
 
