@@ -84,6 +84,10 @@ func (s *sRobot) GetRobotsByUserIds(ctx context.Context, userId ...int) ([]*mode
 	return robots, nil
 }
 
+func (s *sRobot) ClearMessageContext(ctx context.Context, robot *model.Robot, message *model.Message) (int64, error) {
+	return service.Common().ClearMessageContext(ctx, robot, message)
+}
+
 func (s *sRobot) IsNeedRobotReply(ctx context.Context, userId ...int) ([]*model.Robot, bool) {
 
 	// todo 需要改成查缓存
