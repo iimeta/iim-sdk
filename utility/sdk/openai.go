@@ -329,7 +329,7 @@ func GenImage(ctx context.Context, prompt string) (string, error) {
 
 	reqUrl := openai.ImageRequest{
 		Prompt:         prompt,
-		Size:           openai.CreateImageSize512x512,
+		Size:           openai.CreateImageSize1024x1024,
 		ResponseFormat: openai.CreateImageResponseFormatURL,
 		N:              1,
 	}
@@ -365,7 +365,7 @@ func GenImageBase64(ctx context.Context, prompt string, retry ...int) (string, e
 
 	reqBase64 := openai.ImageRequest{
 		Prompt:         prompt,
-		Size:           openai.CreateImageSize512x512,
+		Size:           openai.CreateImageSize1024x1024,
 		ResponseFormat: openai.CreateImageResponseFormatB64JSON,
 		N:              1,
 	}

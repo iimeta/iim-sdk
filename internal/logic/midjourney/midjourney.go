@@ -50,8 +50,8 @@ func (s *sMidjourney) Image(ctx context.Context, robot *model.Robot, message *mo
 		if cdn_url.String() != "" {
 
 			imageInfo.Size = 1024 * 1024 * 5
-			imageInfo.Width = 512
-			imageInfo.Height = 512
+			imageInfo.Width = 1024
+			imageInfo.Height = 1024
 
 			_ = grpool.AddWithRecover(ctx, func(ctx context.Context) {
 

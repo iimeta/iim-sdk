@@ -63,8 +63,8 @@ func (s *sFile) SaveImage(ctx context.Context, imgBytes []byte, ext string, file
 		return nil, err
 	}
 
-	width := 512
-	height := 512
+	width := 1024
+	height := 1024
 	if ext != ".webp" {
 		reader, err := os.Open("./resource/" + filePath)
 		if err != nil {
