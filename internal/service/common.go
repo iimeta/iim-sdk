@@ -15,6 +15,7 @@ type (
 	ICommon interface {
 		GetMessageContext(ctx context.Context, robot *model.Robot, message *model.Message) []string
 		SaveMessageContext(ctx context.Context, robot *model.Robot, message *model.Message, value any) error
+		ClearMessageContext(ctx context.Context, robot *model.Robot, message *model.Message) (int64, error)
 		TrimMessageContext(ctx context.Context, robot *model.Robot, message *model.Message, start, stop int64) error
 	}
 )

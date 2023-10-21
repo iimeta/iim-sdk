@@ -50,6 +50,10 @@ func (s *sCommon) SaveMessageContext(ctx context.Context, robot *model.Robot, me
 	return nil
 }
 
+func (s *sCommon) ClearMessageContext(ctx context.Context, robot *model.Robot, message *model.Message) (int64, error) {
+	return redis.Del(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_KEY, robot.ModelType, message.Stype, message.Sid, robot.UserId))
+}
+
 func (s *sCommon) TrimMessageContext(ctx context.Context, robot *model.Robot, message *model.Message, start, stop int64) error {
 	return redis.LTrim(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_KEY, robot.ModelType, message.Stype, message.Sid, robot.UserId), start, stop)
 }
