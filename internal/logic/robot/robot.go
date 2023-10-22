@@ -124,8 +124,10 @@ func (s *sRobot) Image(ctx context.Context, robot *model.Robot, message *model.M
 
 	switch robot.Corp {
 	case consts.CORP_OPENAI:
+		message.Prompt = service.Common().Translate(ctx, message.Prompt)
 		return service.OpenAI().Image(ctx, robot, message)
 	case consts.CORP_MIDJOURNEY:
+		message.Prompt = service.Common().Translate(ctx, message.Prompt)
 		return service.Midjourney().Image(ctx, robot, message)
 	default:
 		return nil, errors.New("Unknown Corp: " + robot.Corp)

@@ -10,6 +10,9 @@ import (
 	"github.com/iimeta/iim-sdk/internal/service"
 	"github.com/iimeta/iim-sdk/utility/logger"
 	"github.com/iimeta/iim-sdk/utility/redis"
+	"github.com/iimeta/iim-sdk/utility/sdk"
+	"github.com/iimeta/iim-sdk/utility/util"
+	"github.com/sashabaranov/go-openai"
 )
 
 type sCommon struct{}
@@ -56,4 +59,30 @@ func (s *sCommon) ClearMessageContext(ctx context.Context, robot *model.Robot, m
 
 func (s *sCommon) TrimMessageContext(ctx context.Context, robot *model.Robot, message *model.Message, start, stop int64) error {
 	return redis.LTrim(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_KEY, robot.ModelType, message.Stype, message.Sid, robot.UserId), start, stop)
+}
+
+func (s *sCommon) Translate(ctx context.Context, text string) string {
+
+	if util.HasChinese(text) {
+
+		response, err := sdk.ChatGPTChatCompletion(ctx, openai.GPT3Dot5Turbo16K, []openai.ChatCompletionMessage{
+			{
+				Role:    openai.ChatMessageRoleSystem,
+				Content: "把中文翻译成英文",
+			},
+			{
+				Role:    openai.ChatMessageRoleUser,
+				Content: text,
+			},
+		})
+
+		if err != nil {
+			logger.Error(ctx, err)
+			return text
+		}
+
+		return response.Choices[0].Message.Content
+	}
+
+	return text
 }

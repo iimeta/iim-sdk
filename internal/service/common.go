@@ -17,6 +17,7 @@ type (
 		SaveMessageContext(ctx context.Context, robot *model.Robot, message *model.Message, value any) error
 		ClearMessageContext(ctx context.Context, robot *model.Robot, message *model.Message) (int64, error)
 		TrimMessageContext(ctx context.Context, robot *model.Robot, message *model.Message, start, stop int64) error
+		Translate(ctx context.Context, text string) string
 	}
 )
 
