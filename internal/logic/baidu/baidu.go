@@ -41,7 +41,7 @@ func (s *sBaidu) Text(ctx context.Context, robot *model.Robot, message *model.Me
 	}
 
 	ernieBotMessage := sdk.ErnieBotMessage{
-		Role:    sdk.ErnieBotMessageRoleUser,
+		Role:    sdk.RoleUser,
 		Content: message.Prompt,
 	}
 
@@ -63,7 +63,7 @@ func (s *sBaidu) Text(ctx context.Context, robot *model.Robot, message *model.Me
 	content := response.Result
 
 	ernieBotMessage = sdk.ErnieBotMessage{
-		Role:    sdk.ErnieBotMessageRoleAssistant,
+		Role:    sdk.RoleAssistant,
 		Content: content,
 	}
 

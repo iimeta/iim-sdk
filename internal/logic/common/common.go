@@ -65,7 +65,7 @@ func (s *sCommon) Translate(ctx context.Context, text string) string {
 
 	if util.HasChinese(text) {
 
-		response, err := sdk.ChatGPTChatCompletion(ctx, openai.GPT3Dot5Turbo16K, []openai.ChatCompletionMessage{
+		response, err := sdk.ChatCompletion(ctx, openai.GPT3Dot5Turbo16K, []openai.ChatCompletionMessage{
 			{
 				Role:    openai.ChatMessageRoleSystem,
 				Content: "把中文翻译成英文",

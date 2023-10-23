@@ -41,14 +41,6 @@ func (s *sAliyun) Text(ctx context.Context, robot *model.Robot, message *model.M
 		User: message.Prompt,
 	}
 
-	b, err := json.Marshal(qwenChatCompletionMessage)
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
-
-	logger.Infof(ctx, "qwenChatCompletionMessage: %s", string(b))
-
 	messages = append(messages, qwenChatCompletionMessage)
 
 	response, err := sdk.QwenChatCompletion(ctx, robot.Model, messages)

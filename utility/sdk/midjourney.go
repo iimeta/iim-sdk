@@ -18,26 +18,10 @@ import (
 
 func MidjourneyProxy(ctx context.Context, prompt string) (*model.Image, error) {
 
-	api_secret, err := config.Get(ctx, "midjourney.midjourney_proxy.api_secret")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
-
-	api_secret_header, err := config.Get(ctx, "midjourney.midjourney_proxy.api_secret_header")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
-
-	imagine_url, err := config.Get(ctx, "midjourney.midjourney_proxy.imagine_url")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
+	midjourneyProxy := config.Cfg.Sdk.Midjourney.MidjourneyProxy
 
 	header := make(map[string]string)
-	header[api_secret_header.String()] = api_secret.String()
+	header[midjourneyProxy.ApiSecretHeader] = midjourneyProxy.ApiSecret
 
 	midjourneyProxyImagineReq := &model.MidjourneyProxyImagineReq{
 		Prompt: prompt,
@@ -45,7 +29,7 @@ func MidjourneyProxy(ctx context.Context, prompt string) (*model.Image, error) {
 
 	midjourneyProxyImagineRes := new(model.MidjourneyProxyImagineRes)
 
-	err = util.HttpPost(ctx, imagine_url.String(), header, midjourneyProxyImagineReq, &midjourneyProxyImagineRes)
+	err := util.HttpPostJson(ctx, midjourneyProxy.ImagineUrl, header, midjourneyProxyImagineReq, &midjourneyProxyImagineRes)
 	if err != nil {
 		logger.Error(ctx, err)
 		time.Sleep(5 * time.Second)
@@ -129,30 +113,14 @@ func MidjourneyProxyChanges(ctx context.Context, prompt string) (*model.Image, e
 
 func MidjourneyProxyImagine(ctx context.Context, midjourneyProxyImagineReq *model.MidjourneyProxyImagineReq) (*model.MidjourneyProxyImagineRes, error) {
 
-	api_secret, err := config.Get(ctx, "midjourney.midjourney_proxy.api_secret")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
-
-	api_secret_header, err := config.Get(ctx, "midjourney.midjourney_proxy.api_secret_header")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
-
-	imagine_url, err := config.Get(ctx, "midjourney.midjourney_proxy.imagine_url")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
+	midjourneyProxy := config.Cfg.Sdk.Midjourney.MidjourneyProxy
 
 	header := make(map[string]string)
-	header[api_secret_header.String()] = api_secret.String()
+	header[midjourneyProxy.ApiSecretHeader] = midjourneyProxy.ApiSecret
 
 	midjourneyProxyImagineRes := new(model.MidjourneyProxyImagineRes)
 
-	err = util.HttpPost(ctx, imagine_url.String(), header, midjourneyProxyImagineReq, &midjourneyProxyImagineRes)
+	err := util.HttpPostJson(ctx, midjourneyProxy.ImagineUrl, header, midjourneyProxyImagineReq, &midjourneyProxyImagineRes)
 	if err != nil {
 		logger.Error(ctx, err)
 		time.Sleep(5 * time.Second)
@@ -164,30 +132,14 @@ func MidjourneyProxyImagine(ctx context.Context, midjourneyProxyImagineReq *mode
 
 func MidjourneyProxyChange(ctx context.Context, midjourneyProxyChangeReq *model.MidjourneyProxyChangeReq) (*model.MidjourneyProxyChangeRes, error) {
 
-	api_secret, err := config.Get(ctx, "midjourney.midjourney_proxy.api_secret")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
-
-	api_secret_header, err := config.Get(ctx, "midjourney.midjourney_proxy.api_secret_header")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
-
-	change_url, err := config.Get(ctx, "midjourney.midjourney_proxy.change_url")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
+	midjourneyProxy := config.Cfg.Sdk.Midjourney.MidjourneyProxy
 
 	header := make(map[string]string)
-	header[api_secret_header.String()] = api_secret.String()
+	header[midjourneyProxy.ApiSecretHeader] = midjourneyProxy.ApiSecret
 
 	midjourneyProxyChangeRes := new(model.MidjourneyProxyChangeRes)
 
-	err = util.HttpPost(ctx, change_url.String(), header, midjourneyProxyChangeReq, &midjourneyProxyChangeRes)
+	err := util.HttpPostJson(ctx, midjourneyProxy.ChangeUrl, header, midjourneyProxyChangeReq, &midjourneyProxyChangeRes)
 	if err != nil {
 		logger.Error(ctx, err)
 		time.Sleep(5 * time.Second)
@@ -199,30 +151,14 @@ func MidjourneyProxyChange(ctx context.Context, midjourneyProxyChangeReq *model.
 
 func MidjourneyProxyDescribe(ctx context.Context, midjourneyProxyDescribeReq *model.MidjourneyProxyDescribeReq) (*model.MidjourneyProxyDescribeRes, error) {
 
-	api_secret, err := config.Get(ctx, "midjourney.midjourney_proxy.api_secret")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
-
-	api_secret_header, err := config.Get(ctx, "midjourney.midjourney_proxy.api_secret_header")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
-
-	describe_url, err := config.Get(ctx, "midjourney.midjourney_proxy.describe_url")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
+	midjourneyProxy := config.Cfg.Sdk.Midjourney.MidjourneyProxy
 
 	header := make(map[string]string)
-	header[api_secret_header.String()] = api_secret.String()
+	header[midjourneyProxy.ApiSecretHeader] = midjourneyProxy.ApiSecret
 
 	midjourneyProxyDescribeRes := new(model.MidjourneyProxyDescribeRes)
 
-	err = util.HttpPost(ctx, describe_url.String(), header, midjourneyProxyDescribeReq, &midjourneyProxyDescribeRes)
+	err := util.HttpPostJson(ctx, midjourneyProxy.DescribeUrl, header, midjourneyProxyDescribeReq, &midjourneyProxyDescribeRes)
 	if err != nil {
 		logger.Error(ctx, err)
 		time.Sleep(5 * time.Second)
@@ -234,30 +170,14 @@ func MidjourneyProxyDescribe(ctx context.Context, midjourneyProxyDescribeReq *mo
 
 func MidjourneyProxyBlend(ctx context.Context, midjourneyProxyBlendReq *model.MidjourneyProxyBlendReq) (*model.MidjourneyProxyBlendRes, error) {
 
-	api_secret, err := config.Get(ctx, "midjourney.midjourney_proxy.api_secret")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
-
-	api_secret_header, err := config.Get(ctx, "midjourney.midjourney_proxy.api_secret_header")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
-
-	blend_url, err := config.Get(ctx, "midjourney.midjourney_proxy.blend_url")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
+	midjourneyProxy := config.Cfg.Sdk.Midjourney.MidjourneyProxy
 
 	header := make(map[string]string)
-	header[api_secret_header.String()] = api_secret.String()
+	header[midjourneyProxy.ApiSecretHeader] = midjourneyProxy.ApiSecret
 
 	midjourneyProxyBlendRes := new(model.MidjourneyProxyBlendRes)
 
-	err = util.HttpPost(ctx, blend_url.String(), header, midjourneyProxyBlendReq, &midjourneyProxyBlendRes)
+	err := util.HttpPostJson(ctx, midjourneyProxy.BlendUrl, header, midjourneyProxyBlendReq, &midjourneyProxyBlendRes)
 	if err != nil {
 		logger.Error(ctx, err)
 		time.Sleep(5 * time.Second)
@@ -269,28 +189,12 @@ func MidjourneyProxyBlend(ctx context.Context, midjourneyProxyBlendReq *model.Mi
 
 func MidjourneyProxyFetch(ctx context.Context, taskId string) (imageInfo *model.Image, midjourneyProxyFetchRes *model.MidjourneyProxyFetchRes, err error) {
 
-	fetch_url, err := config.Get(ctx, "midjourney.midjourney_proxy.fetch_url")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, nil, err
-	}
-
-	api_secret, err := config.Get(ctx, "midjourney.midjourney_proxy.api_secret")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, nil, err
-	}
-
-	api_secret_header, err := config.Get(ctx, "midjourney.midjourney_proxy.api_secret_header")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, nil, err
-	}
+	midjourneyProxy := config.Cfg.Sdk.Midjourney.MidjourneyProxy
 
 	header := make(map[string]string)
-	header[api_secret_header.String()] = api_secret.String()
+	header[midjourneyProxy.ApiSecretHeader] = midjourneyProxy.ApiSecret
 
-	fetchUrl := gstr.Replace(fetch_url.String(), "${task_id}", taskId, -1)
+	fetchUrl := gstr.Replace(midjourneyProxy.FetchUrl, "${task_id}", taskId, -1)
 
 	midjourneyProxyFetchRes = new(model.MidjourneyProxyFetchRes)
 	err = util.HttpGet(ctx, fetchUrl, header, nil, &midjourneyProxyFetchRes)
@@ -303,21 +207,9 @@ func MidjourneyProxyFetch(ctx context.Context, taskId string) (imageInfo *model.
 
 	if midjourneyProxyFetchRes.Status == "SUCCESS" && gfile.ExtName(midjourneyProxyFetchRes.ImageUrl) == "webp" {
 
-		cdn_proxy_url, err := config.Get(ctx, "midjourney.midjourney_proxy.cdn_proxy_url")
-		if err != nil {
-			logger.Error(ctx, err)
-			return nil, nil, err
-		}
+		imageUrl := gstr.Replace(midjourneyProxyFetchRes.ImageUrl, midjourneyProxy.CdnProxyUrl, midjourneyProxy.CdnOriginalUrl)
 
-		cdn_original_url, err := config.Get(ctx, "midjourney.midjourney_proxy.cdn_original_url")
-		if err != nil {
-			logger.Error(ctx, err)
-			return nil, nil, err
-		}
-
-		imageUrl := gstr.Replace(midjourneyProxyFetchRes.ImageUrl, cdn_proxy_url.String(), cdn_original_url.String())
-
-		imgBytes := util.HttpDownloadFile(ctx, imageUrl, true)
+		imgBytes := util.HttpDownloadFile(ctx, imageUrl, config.Cfg.Sdk.Midjourney.ProxyUrl)
 
 		imageInfo, err = service.File().SaveImage(ctx, imgBytes, gfile.Ext(imageUrl)) // todo
 		if err != nil {
@@ -325,13 +217,7 @@ func MidjourneyProxyFetch(ctx context.Context, taskId string) (imageInfo *model.
 			return nil, nil, err
 		}
 
-		domain, err := config.Get(ctx, "filesystem.local.domain")
-		if err != nil {
-			logger.Error(ctx, err)
-			return nil, nil, err
-		}
-
-		imageUrl = domain.String() + "/" + imageInfo.FilePath
+		imageUrl = config.Cfg.Filesystem.Local.Domain + "/" + imageInfo.FilePath
 
 		midjourneyProxyFetchRes.ImageUrl = imageUrl
 	} else if midjourneyProxyFetchRes.Status == "FAILURE" || midjourneyProxyFetchRes.FailReason != "" {

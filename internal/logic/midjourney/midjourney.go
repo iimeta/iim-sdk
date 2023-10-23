@@ -41,13 +41,9 @@ func (s *sMidjourney) Image(ctx context.Context, robot *model.Robot, message *mo
 
 	if imageInfo.Size == 0 {
 
-		cdn_url, err := config.Get(ctx, "midjourney.cdn_url")
-		if err != nil {
-			logger.Error(ctx, err)
-			return nil, err
-		}
+		cdnUrl := config.Cfg.Sdk.Midjourney.CdnUrl
 
-		if cdn_url.String() != "" {
+		if cdnUrl != "" {
 
 			imageInfo.Size = 1024 * 1024 * 5
 			imageInfo.Width = 1024
@@ -55,7 +51,7 @@ func (s *sMidjourney) Image(ctx context.Context, robot *model.Robot, message *mo
 
 			_ = grpool.AddWithRecover(ctx, func(ctx context.Context) {
 
-				imgBytes := util.HttpDownloadFile(ctx, imageInfo.Url, false)
+				imgBytes := util.HttpDownloadFile(ctx, imageInfo.Url)
 
 				if len(imgBytes) != 0 {
 					_, err = service.File().SaveImage(ctx, imgBytes, gfile.Ext(imageInfo.Url), gfile.Basename(imageInfo.Url))
@@ -76,11 +72,11 @@ func (s *sMidjourney) Image(ctx context.Context, robot *model.Robot, message *mo
 			}
 
 			// 替换CDN
-			imageInfo.Url = cdn_url.String() + originalUrl.Path
+			imageInfo.Url = cdnUrl + originalUrl.Path
 
 		} else {
 
-			imgBytes := util.HttpDownloadFile(ctx, imageInfo.Url, false)
+			imgBytes := util.HttpDownloadFile(ctx, imageInfo.Url)
 
 			if len(imgBytes) == 0 {
 				return nil, err
@@ -92,13 +88,7 @@ func (s *sMidjourney) Image(ctx context.Context, robot *model.Robot, message *mo
 				return nil, err
 			}
 
-			domain, err := config.Get(ctx, "filesystem.local.domain")
-			if err != nil {
-				logger.Error(ctx, err)
-				return nil, err
-			}
-
-			imageInfo.Url = domain.String() + "/" + imageInfo.FilePath
+			imageInfo.Url = config.Cfg.Filesystem.Local.Domain + "/" + imageInfo.FilePath
 		}
 	}
 

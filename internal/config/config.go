@@ -10,6 +10,7 @@ import (
 	"github.com/gogf/gf/v2/os/gctx"
 	"github.com/gogf/gf/v2/os/gfsnotify"
 	"github.com/iimeta/iim-sdk/utility/logger"
+	"time"
 )
 
 var Cfg *Config
@@ -41,13 +42,15 @@ func init() {
 type Config struct {
 	Sdk        *Sdk        `json:"sdk"`
 	Filesystem *Filesystem `json:"filesystem"`
+	Http       *Http       `json:"http"`
 }
 
 type Sdk struct {
-	OpenAI *OpenAI `json:"openai"`
-	Baidu  *Baidu  `json:"baidu"`
-	Xfyun  *Xfyun  `json:"xfyun"`
-	Aliyun *Aliyun `json:"aliyun"`
+	OpenAI     *OpenAI     `json:"openai"`
+	Baidu      *Baidu      `json:"baidu"`
+	Xfyun      *Xfyun      `json:"xfyun"`
+	Aliyun     *Aliyun     `json:"aliyun"`
+	Midjourney *Midjourney `json:"midjourney"`
 }
 
 type OpenAI struct {
@@ -55,7 +58,14 @@ type OpenAI struct {
 }
 
 type Baidu struct {
-	Models map[string]*Model `json:"models"`
+	AccessToken *AccessToken      `json:"access_token"`
+	Models      map[string]*Model `json:"models"`
+}
+
+type AccessToken struct {
+	BaseUrl  string `json:"base_url"`
+	Path     string `json:"path"`
+	ProxyUrl string `json:"proxy_url"`
 }
 
 type Xfyun struct {
@@ -80,6 +90,25 @@ type App struct {
 	Id     string `json:"id"`
 	Key    string `json:"key"`
 	Secret string `json:"secret"`
+}
+
+type Midjourney struct {
+	CdnUrl          string           `json:"cdn_url"`
+	ProxyUrl        string           `json:"proxy_url"`
+	MidjourneyProxy *MidjourneyProxy `json:"midjourney_proxy"`
+}
+
+type MidjourneyProxy struct {
+	CdnProxyUrl     string `json:"cdn_proxy_url"`
+	CdnOriginalUrl  string `json:"cdn_original_url"`
+	ApiSecret       string `json:"api_secret"`
+	ApiSecretHeader string `json:"api_secret_header"`
+	ImagineUrl      string `json:"imagine_url"`
+	SimpleChangeUrl string `json:"simple_change_url"`
+	ChangeUrl       string `json:"change_url"`
+	DescribeUrl     string `json:"describe_url"`
+	BlendUrl        string `json:"blend_url"`
+	FetchUrl        string `json:"fetch_url"`
 }
 
 type Filesystem struct {
@@ -118,6 +147,12 @@ type CosSystem struct {
 	SecretKey string `json:"secret_key"`
 	Bucket    string `json:"bucket"`
 	Region    string `json:"region"`
+}
+
+type Http struct {
+	Timeout   time.Duration `json:"timeout"`
+	ProxyOpen bool          `json:"proxy_open"`
+	ProxyUrl  string        `json:"proxy_url"`
 }
 
 func Get(ctx context.Context, pattern string, def ...interface{}) (*gvar.Var, error) {

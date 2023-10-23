@@ -70,7 +70,7 @@ func (s *sOpenAI) Text(ctx context.Context, robot *model.Robot, message *model.M
 
 	messages = append(messages, chatCompletionMessage)
 
-	response, err := sdk.ChatGPTChatCompletion(ctx, robot.Model, messages)
+	response, err := sdk.ChatCompletion(ctx, robot.Model, messages)
 
 	if err != nil {
 		logger.Error(ctx, err)
@@ -140,13 +140,7 @@ func (s *sOpenAI) Image(ctx context.Context, robot *model.Robot, message *model.
 		return nil, err
 	}
 
-	domain, err := config.Get(ctx, "filesystem.local.domain")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
-
-	imageInfo.Url = domain.String() + "/" + imageInfo.FilePath
+	imageInfo.Url = config.Cfg.Filesystem.Local.Domain + "/" + imageInfo.FilePath
 
 	return imageInfo, nil
 }

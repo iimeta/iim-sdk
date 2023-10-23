@@ -4,42 +4,20 @@ import (
 	"context"
 	"github.com/gogf/gf/v2/encoding/gjson"
 	"github.com/gogf/gf/v2/errors/gerror"
-	"github.com/gogf/gf/v2/os/gctx"
 	"github.com/gogf/gf/v2/os/gtime"
 	"github.com/iimeta/iim-sdk/internal/config"
 	"github.com/iimeta/iim-sdk/utility/logger"
 	"github.com/iimeta/iim-sdk/utility/util"
 )
 
-var qwenApiKeysRoundrobin = new(util.RoundRobin)
-
-func init() {
-
-	ctx := gctx.New()
-
-	models, err := config.Get(ctx, "aliyun.models")
-	if err != nil {
-		logger.Error(ctx, err)
-		panic(err)
-	}
-
-	strVar := models.MapStrVar()
-
-	for model, cfg := range strVar {
-		setModel(model, cfg)
-	}
-
-}
+var qwenRoundRobin = new(util.RoundRobin)
 
 func getQwenApiKey(ctx context.Context, model string) string {
 
 	logger.Infof(ctx, "model: %s", model)
 
-	cfg := getModel(model).MapStrVar()
+	apiKey := qwenRoundRobin.PickKey(config.Cfg.Sdk.Aliyun.Models[model].ApiKeys)
 
-	apiKeys := cfg["api_keys"].Strings()
-
-	apiKey := qwenApiKeysRoundrobin.RoundRobinKey(apiKeys)
 	logger.Infof(ctx, "apiKey: %s", apiKey)
 
 	return apiKey
@@ -100,7 +78,7 @@ func QwenChatCompletion(ctx context.Context, model string, messages []QwenChatCo
 	header["Authorization"] = "Bearer " + getQwenApiKey(ctx, model)
 
 	qwenChatCompletionRes := new(QwenChatCompletionRes)
-	err := util.HttpPost(ctx, getModel(model).MapStrVar()["url"].String(), header, qwenChatCompletionReq, &qwenChatCompletionRes)
+	err := util.HttpPostJson(ctx, config.Cfg.Sdk.Aliyun.Models[model].BaseUrl+config.Cfg.Sdk.Aliyun.Models[model].Path, header, qwenChatCompletionReq, &qwenChatCompletionRes, config.Cfg.Sdk.Aliyun.Models[model].ProxyUrl)
 	if err != nil {
 		logger.Error(ctx, err)
 		return nil, err

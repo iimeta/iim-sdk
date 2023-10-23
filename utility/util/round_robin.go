@@ -1,10 +1,15 @@
 package util
 
+import "sync"
+
 type RoundRobin struct {
+	mu       sync.Mutex
 	CurIndex int
 }
 
-func (r *RoundRobin) RoundRobinIndex(lens int) (index int) {
+func (r *RoundRobin) Index(lens int) (index int) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	if r.CurIndex >= lens {
 		r.CurIndex = 0
@@ -17,6 +22,6 @@ func (r *RoundRobin) RoundRobinIndex(lens int) (index int) {
 	return
 }
 
-func (r *RoundRobin) RoundRobinKey(keys []string) string {
-	return keys[r.RoundRobinIndex(len(keys))]
+func (r *RoundRobin) PickKey(keys []string) string {
+	return keys[r.Index(len(keys))]
 }

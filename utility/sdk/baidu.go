@@ -6,33 +6,15 @@ import (
 	"github.com/gogf/gf/v2/encoding/gjson"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
-	"github.com/gogf/gf/v2/os/gctx"
 	"github.com/gogf/gf/v2/os/gtime"
 	"github.com/iimeta/iim-sdk/internal/config"
 	"github.com/iimeta/iim-sdk/utility/logger"
 	"github.com/iimeta/iim-sdk/utility/util"
 )
 
-func init() {
+var ernieBotRoundRobin = new(util.RoundRobin)
 
-	ctx := gctx.New()
-
-	models, err := config.Get(ctx, "ernie_bot.models")
-	if err != nil {
-		logger.Error(ctx, err)
-		panic(err)
-	}
-
-	strVar := models.MapStrVar()
-
-	for model, cfg := range strVar {
-		setModel(model, cfg)
-	}
-}
-
-const ErnieBotMessageRoleUser = "user"
-const ErnieBotMessageRoleAssistant = "assistant"
-const ERNIE_BOT_ACCESS_TOKEN_KEY = "ernie_bot:access_token"
+const ACCESS_TOKEN_KEY = "sdk:baidu:access_token:%s"
 
 type ErnieBotMessage struct {
 	Role    string `json:"role"`
@@ -60,12 +42,12 @@ type ErnieBotRes struct {
 
 func ErnieBot(ctx context.Context, model string, messages []ErnieBotMessage, retry ...int) (*ErnieBotRes, error) {
 
-	logger.Infof(ctx, "model: %s, ErnieBot...", model)
+	logger.Infof(ctx, "ErnieBot model: %s", model)
 
 	now := gtime.Now().Unix()
 
 	defer func() {
-		logger.Infof(ctx, "ErnieBot 总耗时: %d", gtime.Now().Unix()-now)
+		logger.Infof(ctx, "ErnieBot model: %s, 总耗时: %d", model, gtime.Now().Unix()-now)
 	}()
 
 	req := ErnieBotReq{
@@ -73,16 +55,16 @@ func ErnieBot(ctx context.Context, model string, messages []ErnieBotMessage, ret
 	}
 
 	ernieBotRes := new(ErnieBotRes)
-	err := util.HttpPost(ctx, fmt.Sprintf("%s?access_token=%s", getModel(model).MapStrVar()["url"].String(), GetAccessToken(ctx)), nil, req, &ernieBotRes)
+	err := util.HttpPostJson(ctx, fmt.Sprintf("%s?access_token=%s", config.Cfg.Sdk.Baidu.Models[model].BaseUrl+config.Cfg.Sdk.Baidu.Models[model].Path, GetAccessToken(ctx, model)), nil, req, &ernieBotRes, config.Cfg.Sdk.Baidu.Models[model].ProxyUrl)
 	if err != nil {
 		logger.Error(ctx, err)
 		return nil, err
 	}
 
-	logger.Infof(ctx, "ErnieBot ernieBotRes: %s", gjson.MustEncodeString(ernieBotRes))
+	logger.Infof(ctx, "ErnieBot model: %s, ernieBotRes: %s", model, gjson.MustEncodeString(ernieBotRes))
 
 	if ernieBotRes.ErrorCode != 0 {
-		return nil, gerror.Newf("ErrorCode: %d, ErrorMsg: %s", ernieBotRes.ErrorCode, ernieBotRes.ErrorMsg)
+		return nil, gerror.Newf("ErnieBot model: %s, ErrorCode: %d, ErrorMsg: %s", model, ernieBotRes.ErrorCode, ernieBotRes.ErrorMsg)
 	}
 
 	return ernieBotRes, nil
@@ -99,43 +81,24 @@ type GetAccessTokenRes struct {
 	Error            string `json:"error"`
 }
 
-func GetAccessToken(ctx context.Context, appid ...string) string {
+func GetAccessToken(ctx context.Context, model string) string {
 
-	reply, err := g.Redis().Get(ctx, ERNIE_BOT_ACCESS_TOKEN_KEY)
+	apps := config.Cfg.Sdk.Baidu.Models[model].Apps
+	app := apps[ernieBotRoundRobin.Index(len(apps))]
+
+	reply, err := g.Redis().Get(ctx, fmt.Sprintf(ACCESS_TOKEN_KEY, app.Id))
 	if err == nil && reply.String() != "" {
 		return reply.String()
 	}
 
-	access_token_url, err := config.Get(ctx, "ernie_bot.access_token_url")
-	if err != nil {
-		logger.Error(ctx, err)
-		return ""
-	}
-
-	apps, err := config.Get(ctx, "ernie_bot.apps")
-	if err != nil {
-		logger.Error(ctx, err)
-		return ""
-	}
-
-	appMap := make(map[string]string)
-
-	if len(appid) > 0 {
-		appMap = apps.MapStrVar()[appid[0]].MapStrStr()
-	} else {
-		for _, value := range apps.Vars()[0].MapStrVar() {
-			appMap = value.MapStrStr()
-		}
-	}
-
 	data := g.Map{
 		"grant_type":    "client_credentials",
-		"client_id":     appMap["api_key"],
-		"client_secret": appMap["secret_key"],
+		"client_id":     app.Key,
+		"client_secret": app.Secret,
 	}
 
 	getAccessTokenRes := new(GetAccessTokenRes)
-	err = util.HttpPost2(ctx, access_token_url.String(), nil, data, &getAccessTokenRes)
+	err = util.HttpPost(ctx, config.Cfg.Sdk.Baidu.AccessToken.BaseUrl+config.Cfg.Sdk.Baidu.AccessToken.Path, nil, data, &getAccessTokenRes, config.Cfg.Sdk.Baidu.AccessToken.ProxyUrl)
 	if err != nil {
 		logger.Error(ctx, err)
 		return ""
@@ -146,7 +109,7 @@ func GetAccessToken(ctx context.Context, appid ...string) string {
 		return ""
 	}
 
-	_ = g.Redis().SetEX(ctx, ERNIE_BOT_ACCESS_TOKEN_KEY, getAccessTokenRes.AccessToken, getAccessTokenRes.ExpiresIn)
+	_ = g.Redis().SetEX(ctx, fmt.Sprintf(ACCESS_TOKEN_KEY, app.Id), getAccessTokenRes.AccessToken, getAccessTokenRes.ExpiresIn)
 
 	return getAccessTokenRes.AccessToken
 }

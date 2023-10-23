@@ -42,13 +42,13 @@ func (s *sXfyun) Text(ctx context.Context, robot *model.Robot, message *model.Me
 	}
 
 	textMessage := sdk.Text{
-		Role:    sdk.SparkMessageRoleUser,
+		Role:    sdk.RoleUser,
 		Content: message.Prompt,
 	}
 
 	messages = append(messages, textMessage)
 
-	response, err := sdk.SparkChat(ctx, robot.Model, fmt.Sprintf("%v", message.Sid), messages)
+	response, err := sdk.Spark(ctx, robot.Model, fmt.Sprintf("%v", message.Sid), messages)
 	if err != nil {
 		logger.Error(ctx, err)
 		return nil, err
@@ -63,7 +63,7 @@ func (s *sXfyun) Text(ctx context.Context, robot *model.Robot, message *model.Me
 	content := response.Content
 
 	textMessage = sdk.Text{
-		Role:    sdk.SparkMessageRoleAssistant,
+		Role:    sdk.RoleAssistant,
 		Content: content,
 	}
 

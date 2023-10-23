@@ -20,8 +20,7 @@ import (
 	"time"
 )
 
-const SparkMessageRoleUser = "user"
-const SparkMessageRoleAssistant = "assistant"
+var sparkRoundRobin = new(util.RoundRobin)
 
 type Header struct {
 	// req
@@ -97,32 +96,29 @@ type SparkRes struct {
 	Payload Payload `json:"payload"`
 }
 
-func SparkChat(ctx context.Context, model, uid string, text []Text, retry ...int) (*SparkRes, error) {
+func Spark(ctx context.Context, model, uid string, text []Text, retry ...int) (*SparkRes, error) {
 
-	app_id, err := config.Get(ctx, "xfyun.spark.app_id")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
+	logger.Infof(ctx, "Spark model: %s", model)
 
-	domain, err := config.Get(ctx, "xfyun.spark.domain")
-	if err != nil {
-		logger.Error(ctx, err)
-		return nil, err
-	}
+	now := gtime.Now().Unix()
 
-	max_tokens := config.GetInt(ctx, "xfyun.spark.max_tokens")
+	defer func() {
+		logger.Infof(ctx, "Spark model: %s, 总耗时: %d", model, gtime.Now().Unix()-now)
+	}()
+
+	apps := config.Cfg.Sdk.Xfyun.Models[model].Apps
+	app := apps[sparkRoundRobin.Index(len(apps))]
 
 	sparkReq := SparkReq{
 		Header: Header{
-			AppId: app_id.String(),
+			AppId: app.Id,
 			Uid:   uid,
 		},
 		Parameter: Parameter{
 			Chat: &Chat{
-				Domain:          domain.String(),
+				Domain:          config.Cfg.Sdk.Xfyun.Models[model].Domain,
 				RandomThreshold: 0,
-				MaxTokens:       max_tokens,
+				MaxTokens:       config.Cfg.Sdk.Xfyun.Models[model].MaxTokens,
 			},
 		},
 		Payload: Payload{
@@ -138,9 +134,9 @@ func SparkChat(ctx context.Context, model, uid string, text []Text, retry ...int
 		return nil, err
 	}
 
-	url := getAuthorizationUrl(ctx)
+	url := getAuthorizationUrl(ctx, config.Cfg.Sdk.Xfyun.Models[model], app)
 
-	logger.Infof(ctx, "getAuthorizationUrl: %s", url)
+	logger.Infof(ctx, "Spark model: %s, getAuthorizationUrl: %s", url)
 
 	result := make(chan []byte)
 	var conn *websocket.Conn
@@ -186,32 +182,29 @@ func SparkChat(ctx context.Context, model, uid string, text []Text, retry ...int
 	}
 }
 
-func SparkStreaming(ctx context.Context, model, uid string, text []Text, responseContent chan Payload, retry ...int) {
+func SparkStream(ctx context.Context, model, uid string, text []Text, responseContent chan Payload, retry ...int) {
 
-	app_id, err := config.Get(ctx, "xfyun.spark.app_id")
-	if err != nil {
-		logger.Error(ctx, err)
-		return
-	}
+	logger.Infof(ctx, "SparkStream model: %s", model)
 
-	domain, err := config.Get(ctx, "xfyun.spark.domain")
-	if err != nil {
-		logger.Error(ctx, err)
-		return
-	}
+	now := gtime.Now().Unix()
 
-	max_tokens := config.GetInt(ctx, "xfyun.spark.max_tokens")
+	defer func() {
+		logger.Infof(ctx, "SparkStream model: %s, 总耗时: %d", model, gtime.Now().Unix()-now)
+	}()
+
+	apps := config.Cfg.Sdk.Xfyun.Models[model].Apps
+	app := apps[sparkRoundRobin.Index(len(apps))]
 
 	sparkReq := SparkReq{
 		Header: Header{
-			AppId: app_id.String(),
+			AppId: app.Id,
 			Uid:   uid,
 		},
 		Parameter: Parameter{
 			Chat: &Chat{
-				Domain:          domain.String(),
+				Domain:          config.Cfg.Sdk.Xfyun.Models[model].Domain,
 				RandomThreshold: 0,
-				MaxTokens:       max_tokens,
+				MaxTokens:       config.Cfg.Sdk.Xfyun.Models[model].MaxTokens,
 			},
 		},
 		Payload: Payload{
@@ -227,9 +220,9 @@ func SparkStreaming(ctx context.Context, model, uid string, text []Text, respons
 		return
 	}
 
-	url := getAuthorizationUrl(ctx)
+	url := getAuthorizationUrl(ctx, config.Cfg.Sdk.Xfyun.Models[model], app)
 
-	logger.Infof(ctx, "getAuthorizationUrl: %s", url)
+	logger.Infof(ctx, "SparkStream model: %s, getAuthorizationUrl: %s", url)
 
 	result := make(chan []byte)
 	var conn *websocket.Conn
@@ -268,27 +261,9 @@ func SparkStreaming(ctx context.Context, model, uid string, text []Text, respons
 	}
 }
 
-func getAuthorizationUrl(ctx context.Context) string {
+func getAuthorizationUrl(ctx context.Context, model *config.Model, app *config.App) string {
 
-	api_key, err := config.Get(ctx, "xfyun.spark.api_key")
-	if err != nil {
-		logger.Error(ctx, err)
-		return ""
-	}
-
-	api_secret, err := config.Get(ctx, "xfyun.spark.api_secret")
-	if err != nil {
-		logger.Error(ctx, err)
-		return ""
-	}
-
-	chat_url, err := config.Get(ctx, "xfyun.spark.chat_url")
-	if err != nil {
-		logger.Error(ctx, err)
-		return ""
-	}
-
-	parse, err := url.Parse(chat_url.String())
+	parse, err := url.Parse(model.BaseUrl + model.Path)
 	if err != nil {
 		logger.Error(ctx, err)
 		return ""
@@ -303,7 +278,7 @@ func getAuthorizationUrl(ctx context.Context) string {
 	tmp += "date: " + date + "\n"
 	tmp += "GET " + parse.Path + " HTTP/1.1"
 
-	hash := hmac.New(sha256.New, api_secret.Bytes())
+	hash := hmac.New(sha256.New, []byte(app.Secret))
 
 	_, err = hash.Write([]byte(tmp))
 	if err != nil {
@@ -313,9 +288,9 @@ func getAuthorizationUrl(ctx context.Context) string {
 
 	signature := gbase64.EncodeToString(hash.Sum(nil))
 
-	authorizationOrigin := gbase64.EncodeToString([]byte(fmt.Sprintf("api_key=\"%s\",algorithm=\"%s\",headers=\"%s\",signature=\"%s\"", api_key.String(), "hmac-sha256", "host date request-line", signature)))
+	authorizationOrigin := gbase64.EncodeToString([]byte(fmt.Sprintf("api_key=\"%s\",algorithm=\"%s\",headers=\"%s\",signature=\"%s\"", app.Key, "hmac-sha256", "host date request-line", signature)))
 
-	wsURL := gstr.Replace(gstr.Replace(chat_url.String(), "https://", "wss://"), "http://", "ws://")
+	wsURL := gstr.Replace(gstr.Replace(model.BaseUrl+model.Path, "https://", "wss://"), "http://", "ws://")
 
 	return fmt.Sprintf("%s?authorization=%s&date=%s&host=%s", wsURL, authorizationOrigin, gurl.RawEncode(date), parse.Host)
 }
