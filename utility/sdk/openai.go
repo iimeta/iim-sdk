@@ -61,7 +61,7 @@ func Init(ctx context.Context, model string) {
 	proxyURL := cfg["proxy_url"].String()
 	apiKeys := cfg["api_keys"].Strings()
 
-	apiKey := apiKeysRoundrobin.RoundRobin(apiKeys)
+	apiKey := apiKeysRoundrobin.RoundRobinKey(apiKeys)
 	logger.Infof(ctx, "apiKey: %s", apiKey)
 
 	config := openai.DefaultConfig(apiKey)

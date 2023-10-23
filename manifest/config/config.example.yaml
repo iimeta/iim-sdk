@@ -52,29 +52,6 @@ logger:
   stdoutColorDisabled: false  # 关闭终端的颜色打印。默认开启
   writerColorEnable: false    # 日志文件是否带上颜色。默认false，表示不带颜色
 
-# 项目配置信息
-app:
-  env: dev  # dev, prod
-  debug: true
-  juhe_key: xxx
-  juhe_url:
-  admin_email:
-    - xxx@xxx.com
-
-# Jwt配置
-jwt:
-  secret: 836c3fea9nba4e045d1bd0fbcc5
-  expires_time: 259200
-  buffer_time: 28800
-
-# 跨域配置
-cors:
-  origin: "*"
-  headers: "Content-Type,Cache-Control,User-Agent,Keep-Alive,DNT,AccessToken,Authorization"
-  methods: "OPTIONS,GET,POST,PUT,DELETE"
-  credentials: false
-  max_age: 600
-
 # 文件系统配置【oss,qiniu 暂不支持】
 filesystem:
   default: local
@@ -97,14 +74,6 @@ filesystem:
     secret_key:
     bucket: im-xxx
     region: ap-shanghai
-
-# 邮件配置
-email:
-  host: smtp.xxx.com
-  port: 465
-  username: xxx@xxx.com
-  password: xxx
-  fromname: "智元 IM"
 
 # http代理
 http:
@@ -177,6 +146,3 @@ aliyun:
       url: https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation
       api_keys:
         - sk-xxx
-
-register:
-  auto_add_uids: [ ]  # 注册时需要自动添加的用户ID [user_id, user_id, user_id...]

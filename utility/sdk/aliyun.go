@@ -39,7 +39,7 @@ func getQwenApiKey(ctx context.Context, model string) string {
 
 	apiKeys := cfg["api_keys"].Strings()
 
-	apiKey := qwenApiKeysRoundrobin.RoundRobin(apiKeys)
+	apiKey := qwenApiKeysRoundrobin.RoundRobinKey(apiKeys)
 	logger.Infof(ctx, "apiKey: %s", apiKey)
 
 	return apiKey

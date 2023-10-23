@@ -4,18 +4,19 @@ type RoundRobin struct {
 	CurIndex int
 }
 
-// 轮询模式
-func (roundRobin *RoundRobin) RoundRobin(values []string) (value string) {
+func (r *RoundRobin) RoundRobinIndex(lens int) (index int) {
 
-	lens := len(values)
-
-	if roundRobin.CurIndex >= lens {
-		roundRobin.CurIndex = 0
+	if r.CurIndex >= lens {
+		r.CurIndex = 0
 	}
 
-	value = values[roundRobin.CurIndex]
+	index = r.CurIndex
 
-	roundRobin.CurIndex = (roundRobin.CurIndex + 1) % lens
+	r.CurIndex = (r.CurIndex + 1) % lens
 
 	return
+}
+
+func (r *RoundRobin) RoundRobinKey(keys []string) string {
+	return keys[r.RoundRobinIndex(len(keys))]
 }
