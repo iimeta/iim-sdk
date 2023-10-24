@@ -8,8 +8,10 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gtime"
 	"github.com/iimeta/iim-sdk/internal/config"
+	"github.com/iimeta/iim-sdk/internal/errors"
 	"github.com/iimeta/iim-sdk/utility/logger"
 	"github.com/iimeta/iim-sdk/utility/util"
+	"time"
 )
 
 var ernieBotRoundRobin = new(util.RoundRobin)
@@ -40,14 +42,21 @@ type ErnieBotRes struct {
 	ErrorMsg  string `json:"error_msg"`
 }
 
-func ErnieBot(ctx context.Context, model string, messages []ErnieBotMessage, retry ...int) (*ErnieBotRes, error) {
+func ErnieBot(ctx context.Context, model string, messages []ErnieBotMessage, retry ...int) (res *ErnieBotRes, err error) {
+
+	if len(retry) > 5 {
+		return nil, errors.New("响应超时, 请重试...")
+	}
 
 	logger.Infof(ctx, "ErnieBot model: %s", model)
 
 	now := gtime.Now().Unix()
 
+	apps := config.Cfg.Sdk.Baidu.Models[model].Apps
+	app := apps[ernieBotRoundRobin.Index(len(apps))]
+
 	defer func() {
-		logger.Infof(ctx, "ErnieBot model: %s, 总耗时: %d", model, gtime.Now().Unix()-now)
+		logger.Infof(ctx, "ErnieBot model: %s, appid: %s, 总耗时: %d", model, app.Id, gtime.Now().Unix()-now)
 	}()
 
 	req := ErnieBotReq{
@@ -55,16 +64,21 @@ func ErnieBot(ctx context.Context, model string, messages []ErnieBotMessage, ret
 	}
 
 	ernieBotRes := new(ErnieBotRes)
-	err := util.HttpPostJson(ctx, fmt.Sprintf("%s?access_token=%s", config.Cfg.Sdk.Baidu.Models[model].BaseUrl+config.Cfg.Sdk.Baidu.Models[model].Path, GetAccessToken(ctx, model)), nil, req, &ernieBotRes, config.Cfg.Sdk.Baidu.Models[model].ProxyUrl)
+	err = util.HttpPostJson(ctx, fmt.Sprintf("%s?access_token=%s", config.Cfg.Sdk.Baidu.Models[model].BaseUrl+config.Cfg.Sdk.Baidu.Models[model].Path, getAccessToken(ctx, app)), nil, req, &ernieBotRes, config.Cfg.Sdk.Baidu.Models[model].ProxyUrl)
 	if err != nil {
 		logger.Error(ctx, err)
-		return nil, err
+		time.Sleep(3 * time.Second)
+		return ErnieBot(ctx, model, messages, append(retry, 1)...)
 	}
 
-	logger.Infof(ctx, "ErnieBot model: %s, ernieBotRes: %s", model, gjson.MustEncodeString(ernieBotRes))
-
 	if ernieBotRes.ErrorCode != 0 {
-		return nil, gerror.Newf("ErnieBot model: %s, ErrorCode: %d, ErrorMsg: %s", model, ernieBotRes.ErrorCode, ernieBotRes.ErrorMsg)
+		logger.Error(ctx, gjson.MustEncodeString(ernieBotRes))
+		if len(retry) < 5 {
+			time.Sleep(3 * time.Second)
+			return ErnieBot(ctx, model, messages, append(retry, 1)...)
+
+		}
+		return nil, gerror.Newf("ErnieBot ErrorCode: %d, ErrorMsg: %s, 发生错误, 请联系作者处理...", ernieBotRes.ErrorCode, ernieBotRes.ErrorMsg)
 	}
 
 	return ernieBotRes, nil
@@ -81,10 +95,7 @@ type GetAccessTokenRes struct {
 	Error            string `json:"error"`
 }
 
-func GetAccessToken(ctx context.Context, model string) string {
-
-	apps := config.Cfg.Sdk.Baidu.Models[model].Apps
-	app := apps[ernieBotRoundRobin.Index(len(apps))]
+func getAccessToken(ctx context.Context, app *config.App) string {
 
 	reply, err := g.Redis().Get(ctx, fmt.Sprintf(ACCESS_TOKEN_KEY, app.Id))
 	if err == nil && reply.String() != "" {

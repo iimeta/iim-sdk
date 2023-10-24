@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/gogf/gf/v2/encoding/gjson"
+	"github.com/gogf/gf/v2/os/gctx"
 	"github.com/gogf/gf/v2/os/gtime"
 	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/iimeta/iim-sdk/internal/config"
@@ -26,28 +27,33 @@ var ChatMessageRoleSystem = openai.ChatCompletionMessage{
 }
 var openaiRoundrobin = new(util.RoundRobin)
 
-func Init(ctx context.Context, model string) {
+func init() {
+	ctx := gctx.New()
+	for model := range config.Cfg.Sdk.OpenAI.Models {
+		Init(ctx, model)
+	}
+}
 
-	logger.Infof(ctx, "OpenAI model: %s", model)
+func Init(ctx context.Context, model string) {
 
 	baseURL := config.Cfg.Sdk.OpenAI.Models[model].BaseUrl
 	proxyURL := config.Cfg.Sdk.OpenAI.Models[model].ProxyUrl
 	apiKeys := config.Cfg.Sdk.OpenAI.Models[model].ApiKeys
 	apiKey := openaiRoundrobin.PickKey(apiKeys)
 
-	logger.Infof(ctx, "OpenAI model: %s, apiKey: %s", model, apiKey)
+	logger.Infof(ctx, "Init OpenAI model: %s, apiKey: %s", model, apiKey)
 
 	config := openai.DefaultConfig(apiKey)
 
 	if baseURL != "" {
-		logger.Infof(ctx, "OpenAI model: %s, baseURL: %s", model, baseURL)
+		logger.Infof(ctx, "Init OpenAI model: %s, baseURL: %s", model, baseURL)
 		config.BaseURL = baseURL
 	}
 
 	transport := &http.Transport{}
 
 	if baseURL == "" && proxyURL != "" {
-		logger.Infof(ctx, "OpenAI model: %s, proxyURL: %s", model, proxyURL)
+		logger.Infof(ctx, "Init OpenAI model: %s, proxyURL: %s", model, proxyURL)
 		proxyUrl, err := url.Parse(proxyURL)
 		if err != nil {
 			panic(err)

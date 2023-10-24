@@ -6,19 +6,19 @@ import (
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/os/gtime"
 	"github.com/iimeta/iim-sdk/internal/config"
+	"github.com/iimeta/iim-sdk/internal/errors"
 	"github.com/iimeta/iim-sdk/utility/logger"
 	"github.com/iimeta/iim-sdk/utility/util"
+	"time"
 )
 
 var qwenRoundRobin = new(util.RoundRobin)
 
 func getQwenApiKey(ctx context.Context, model string) string {
 
-	logger.Infof(ctx, "model: %s", model)
-
 	apiKey := qwenRoundRobin.PickKey(config.Cfg.Sdk.Aliyun.Models[model].ApiKeys)
 
-	logger.Infof(ctx, "apiKey: %s", apiKey)
+	logger.Infof(ctx, "getQwenApiKey model: %s, apiKey: %s", model, apiKey)
 
 	return apiKey
 }
@@ -51,14 +51,20 @@ type QwenChatCompletionRes struct {
 	Message   string `json:"message"`
 }
 
-func QwenChatCompletion(ctx context.Context, model string, messages []QwenChatCompletionMessage, retry ...int) (*QwenChatCompletionRes, error) {
+func QwenChatCompletion(ctx context.Context, model string, messages []QwenChatCompletionMessage, retry ...int) (res *QwenChatCompletionRes, err error) {
 
-	logger.Infof(ctx, "model: %s, QwenChatCompletion...", model)
+	if len(retry) > 5 {
+		return nil, errors.New("响应超时, 请重试...")
+	}
+
+	logger.Infof(ctx, "QwenChatCompletion model: %s", model)
 
 	now := gtime.Now().Unix()
 
+	apiKey := getQwenApiKey(ctx, model)
+
 	defer func() {
-		logger.Infof(ctx, "QwenChatCompletion 总耗时: %d", gtime.Now().Unix()-now)
+		logger.Infof(ctx, "QwenChatCompletion model: %s, apiKey: %s, 总耗时: %d", model, apiKey, gtime.Now().Unix()-now)
 	}()
 
 	l := len(messages)
@@ -75,19 +81,22 @@ func QwenChatCompletion(ctx context.Context, model string, messages []QwenChatCo
 	}
 
 	header := make(map[string]string)
-	header["Authorization"] = "Bearer " + getQwenApiKey(ctx, model)
+	header["Authorization"] = "Bearer " + apiKey
 
 	qwenChatCompletionRes := new(QwenChatCompletionRes)
-	err := util.HttpPostJson(ctx, config.Cfg.Sdk.Aliyun.Models[model].BaseUrl+config.Cfg.Sdk.Aliyun.Models[model].Path, header, qwenChatCompletionReq, &qwenChatCompletionRes, config.Cfg.Sdk.Aliyun.Models[model].ProxyUrl)
+	err = util.HttpPostJson(ctx, config.Cfg.Sdk.Aliyun.Models[model].BaseUrl+config.Cfg.Sdk.Aliyun.Models[model].Path, header, qwenChatCompletionReq, &qwenChatCompletionRes, config.Cfg.Sdk.Aliyun.Models[model].ProxyUrl)
 	if err != nil {
 		logger.Error(ctx, err)
-		return nil, err
+		return QwenChatCompletion(ctx, model, messages, append(retry, 1)...)
 	}
 
-	logger.Infof(ctx, "QwenChatCompletion response: %s", gjson.MustEncodeString(qwenChatCompletionRes))
-
 	if qwenChatCompletionRes.Code != "" {
-		return qwenChatCompletionRes, gerror.Newf("Code: %s, Message: %s, 发生错误, 请联系作者处理...", qwenChatCompletionRes.Code, qwenChatCompletionRes.Message)
+		logger.Error(ctx, gjson.MustEncodeString(qwenChatCompletionRes))
+		if len(retry) < 5 {
+			time.Sleep(3 * time.Second)
+			return QwenChatCompletion(ctx, model, messages, append(retry, 1)...)
+		}
+		return qwenChatCompletionRes, gerror.Newf("Qwen Code: %s, Message: %s, 发生错误, 请联系作者处理...", qwenChatCompletionRes.Code, qwenChatCompletionRes.Message)
 	}
 
 	return qwenChatCompletionRes, nil

@@ -69,7 +69,8 @@ type AccessToken struct {
 }
 
 type Xfyun struct {
-	Models map[string]*Model `json:"models"`
+	OriginalUrl string            `json:"original_url"`
+	Models      map[string]*Model `json:"models"`
 }
 
 type Aliyun struct {

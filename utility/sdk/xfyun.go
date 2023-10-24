@@ -96,18 +96,21 @@ type SparkRes struct {
 	Payload Payload `json:"payload"`
 }
 
-func Spark(ctx context.Context, model, uid string, text []Text, retry ...int) (*SparkRes, error) {
+func Spark(ctx context.Context, model, uid string, text []Text, retry ...int) (res *SparkRes, err error) {
+
+	if len(retry) > 5 {
+		return nil, errors.New("响应超时, 请重试...")
+	}
 
 	logger.Infof(ctx, "Spark model: %s", model)
 
 	now := gtime.Now().Unix()
-
-	defer func() {
-		logger.Infof(ctx, "Spark model: %s, 总耗时: %d", model, gtime.Now().Unix()-now)
-	}()
-
 	apps := config.Cfg.Sdk.Xfyun.Models[model].Apps
 	app := apps[sparkRoundRobin.Index(len(apps))]
+
+	defer func() {
+		logger.Infof(ctx, "Spark model: %s, appid: %s, 总耗时: %d", model, app.Id, gtime.Now().Unix()-now)
+	}()
 
 	sparkReq := SparkReq{
 		Header: Header{
@@ -136,7 +139,7 @@ func Spark(ctx context.Context, model, uid string, text []Text, retry ...int) (*
 
 	url := getAuthorizationUrl(ctx, config.Cfg.Sdk.Xfyun.Models[model], app)
 
-	logger.Infof(ctx, "Spark model: %s, getAuthorizationUrl: %s", url)
+	logger.Infof(ctx, "Spark model: %s, appid: %s, getAuthorizationUrl: %s", model, app.Id, url)
 
 	result := make(chan []byte)
 	var conn *websocket.Conn
@@ -164,17 +167,21 @@ func Spark(ctx context.Context, model, uid string, text []Text, retry ...int) (*
 			err := gjson.Unmarshal(message, &sparkRes)
 			if err != nil {
 				logger.Error(ctx, err)
-				return nil, err
+				time.Sleep(3 * time.Second)
+				return Spark(ctx, model, uid, text, append(retry, 1)...)
 			}
 
 			if sparkRes.Header.Code != 0 {
-				return nil, errors.New(gjson.MustEncodeString(sparkRes))
+				if len(retry) < 5 {
+					time.Sleep(3 * time.Second)
+					return Spark(ctx, model, uid, text, append(retry, 1)...)
+				}
+				return nil, errors.New(gjson.MustEncodeString(sparkRes) + ", 发生错误, 请联系作者处理...")
 			}
 
 			responseContent += sparkRes.Payload.Choices.Text[0].Content
 
 			if sparkRes.Header.Status == 2 {
-				logger.Infof(ctx, "responseContent: %s", responseContent)
 				sparkRes.Content = responseContent
 				return sparkRes, nil
 			}
@@ -184,16 +191,22 @@ func Spark(ctx context.Context, model, uid string, text []Text, retry ...int) (*
 
 func SparkStream(ctx context.Context, model, uid string, text []Text, responseContent chan Payload, retry ...int) {
 
+	if len(retry) > 5 {
+		responseContent <- Payload{
+			// todo
+		}
+		return
+	}
+
 	logger.Infof(ctx, "SparkStream model: %s", model)
 
 	now := gtime.Now().Unix()
-
-	defer func() {
-		logger.Infof(ctx, "SparkStream model: %s, 总耗时: %d", model, gtime.Now().Unix()-now)
-	}()
-
 	apps := config.Cfg.Sdk.Xfyun.Models[model].Apps
 	app := apps[sparkRoundRobin.Index(len(apps))]
+
+	defer func() {
+		logger.Infof(ctx, "SparkStream model: %s, appid: %s, 总耗时: %d", model, app.Id, gtime.Now().Unix()-now)
+	}()
 
 	sparkReq := SparkReq{
 		Header: Header{
@@ -222,7 +235,7 @@ func SparkStream(ctx context.Context, model, uid string, text []Text, responseCo
 
 	url := getAuthorizationUrl(ctx, config.Cfg.Sdk.Xfyun.Models[model], app)
 
-	logger.Infof(ctx, "SparkStream model: %s, getAuthorizationUrl: %s", url)
+	logger.Infof(ctx, "SparkStream model: %s, appid: %s, getAuthorizationUrl: %s", model, app.Id, url)
 
 	result := make(chan []byte)
 	var conn *websocket.Conn
@@ -263,7 +276,7 @@ func SparkStream(ctx context.Context, model, uid string, text []Text, responseCo
 
 func getAuthorizationUrl(ctx context.Context, model *config.Model, app *config.App) string {
 
-	parse, err := url.Parse(model.BaseUrl + model.Path)
+	parse, err := url.Parse(config.Cfg.Sdk.Xfyun.OriginalUrl + model.Path)
 	if err != nil {
 		logger.Error(ctx, err)
 		return ""
