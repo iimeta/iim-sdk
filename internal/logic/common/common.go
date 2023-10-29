@@ -61,20 +61,31 @@ func (s *sCommon) TrimMessageContext(ctx context.Context, robot *model.Robot, me
 	return redis.LTrim(ctx, fmt.Sprintf(consts.MESSAGE_CONTEXT_KEY, robot.ModelType, message.Stype, message.Sid, robot.UserId), start, stop)
 }
 
-func (s *sCommon) Translate(ctx context.Context, text string) string {
+func (s *sCommon) Translate(ctx context.Context, text string, retry ...int) (res string) {
+
+	var err error
+	var response openai.ChatCompletionResponse
+
+	defer func() {
+		if err != nil && len(retry) < 5 {
+			res = s.Translate(ctx, text, append(retry, 1)...)
+		}
+	}()
 
 	if util.HasChinese(text) {
 
-		response, err := sdk.ChatCompletion(ctx, openai.GPT3Dot5Turbo16K, []openai.ChatCompletionMessage{
-			{
-				Role:    openai.ChatMessageRoleSystem,
-				Content: "把中文翻译成英文",
-			},
-			{
-				Role:    openai.ChatMessageRoleUser,
-				Content: text,
-			},
-		})
+		response, err = sdk.ChatCompletion(ctx, openai.ChatCompletionRequest{
+			Model: openai.GPT3Dot5Turbo16K,
+			Messages: []openai.ChatCompletionMessage{
+				{
+					Role:    openai.ChatMessageRoleSystem,
+					Content: "把中文翻译成英文",
+				},
+				{
+					Role:    openai.ChatMessageRoleUser,
+					Content: text,
+				},
+			}}, retry...)
 
 		if err != nil {
 			logger.Error(ctx, err)

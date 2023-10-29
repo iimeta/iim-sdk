@@ -28,3 +28,9 @@ var Robot = service.Robot()
 func NewMessage() *model.Message {
 	return new(model.Message)
 }
+
+var Chat = service.Chat()
+
+func NewChat() *model.Chat {
+	return new(model.Chat)
+}
