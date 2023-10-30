@@ -7,6 +7,10 @@ import (
 
 func NumTokensFromString(text, model string) (int, error) {
 
+	if text == "" {
+		return 0, nil
+	}
+
 	tkm, err := tiktoken.EncodingForModel(model)
 	if err != nil {
 		return 0, err
@@ -16,6 +20,10 @@ func NumTokensFromString(text, model string) (int, error) {
 }
 
 func NumTokensFromMessages(messages []openai.ChatCompletionMessage, model string) (numTokens int, err error) {
+
+	if len(messages) == 0 {
+		return 0, nil
+	}
 
 	tkm, err := tiktoken.EncodingForModel(model)
 	if err != nil {

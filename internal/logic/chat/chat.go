@@ -2,7 +2,6 @@ package chat
 
 import (
 	"context"
-	"github.com/gogf/gf/v2/encoding/gjson"
 	"github.com/gogf/gf/v2/os/grpool"
 	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/iimeta/iim-sdk/internal/consts"
@@ -164,28 +163,21 @@ func (s *sChat) ChatStream(ctx context.Context, chat *model.Chat, retry ...int) 
 		}
 	}()
 
-	promptTokens, err := sdk.NumTokensFromMessages(chat.Messages, chat.Model)
-	if err != nil {
-		return responseChan, err
+	var streamResponse chan openai.ChatCompletionStreamResponse
+
+	switch chat.Corp {
+	case consts.CORP_OPENAI:
+		streamResponse, err = sdk.ChatCompletionStream(ctx, openai.ChatCompletionRequest{
+			Model:    chat.Model,
+			Messages: chat.Messages,
+			Stream:   true,
+		}, retry...)
+	case consts.CORP_BAIDU:
+	case consts.CORP_XFYUN:
+	case consts.CORP_ALIYUN:
 	}
 
-	streamResponse := make(chan openai.ChatCompletionStreamResponse)
-
-	if err = grpool.AddWithRecover(ctx, func(ctx context.Context) {
-
-		switch chat.Corp {
-		case consts.CORP_OPENAI:
-			err = sdk.ChatCompletionStream(ctx, openai.ChatCompletionRequest{
-				Model:    chat.Model,
-				Messages: chat.Messages,
-				Stream:   true,
-			}, streamResponse, retry...)
-		case consts.CORP_BAIDU:
-		case consts.CORP_XFYUN:
-		case consts.CORP_ALIYUN:
-		}
-
-	}, nil); err != nil {
+	if err != nil {
 		logger.Error(ctx, err)
 		return responseChan, err
 	}
@@ -195,21 +187,27 @@ func (s *sChat) ChatStream(ctx context.Context, chat *model.Chat, retry ...int) 
 		defer close(streamResponse)
 		completionTokens := 0
 
+		promptTokens, err := sdk.NumTokensFromMessages(chat.Messages, chat.Model)
+		if err != nil {
+			logger.Error(ctx, err)
+			return
+		}
+
 		for {
 			select {
 			case streamResponse := <-streamResponse:
 
-				bytes, err := gjson.Marshal(streamResponse)
-				if err != nil {
-					return
-				}
-
-				response := model.ChatCompletionStreamResponse{}
-				if err = gjson.Unmarshal(bytes, &response); err != nil {
-					return
+				response := model.ChatCompletionStreamResponse{
+					ID:                streamResponse.ID,
+					Object:            streamResponse.Object,
+					Created:           streamResponse.Created,
+					Model:             streamResponse.Model,
+					Choices:           streamResponse.Choices,
+					PromptAnnotations: streamResponse.PromptAnnotations,
 				}
 
 				if response.Usage.CompletionTokens, err = sdk.NumTokensFromString(response.Choices[0].Delta.Content, chat.Model); err != nil {
+					logger.Error(ctx, err)
 					return
 				}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/gogf/gf/v2/encoding/gjson"
 	"github.com/gogf/gf/v2/os/gctx"
+	"github.com/gogf/gf/v2/os/grpool"
 	"github.com/gogf/gf/v2/os/gtime"
 	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/iimeta/iim-sdk/internal/config"
@@ -88,7 +89,7 @@ func ChatCompletion(ctx context.Context, request openai.ChatCompletionRequest, r
 	return response, nil
 }
 
-func ChatCompletionStream(ctx context.Context, request openai.ChatCompletionRequest, responseContent chan openai.ChatCompletionStreamResponse, retry ...int) error {
+func ChatCompletionStream(ctx context.Context, request openai.ChatCompletionRequest, retry ...int) (responseChan chan openai.ChatCompletionStreamResponse, err error) {
 
 	logger.Infof(ctx, "ChatCompletionStream model: %s", request.Model)
 
@@ -105,28 +106,38 @@ func ChatCompletionStream(ctx context.Context, request openai.ChatCompletionRequ
 	stream, err := getClient(request.Model).CreateChatCompletionStream(ctx, request)
 	if err != nil {
 		logger.Errorf(ctx, "ChatCompletionStream model: %s, error: %v", request.Model, err)
-		return err
+		return responseChan, err
 	}
 
 	logger.Infof(ctx, "ChatCompletionStream model: %s, start", request.Model)
 
-	for {
+	responseChan = make(chan openai.ChatCompletionStreamResponse)
 
-		response, err := stream.Recv()
-		if errors.Is(err, io.EOF) {
-			logger.Infof(ctx, "ChatCompletionStream model: %s, finished", request.Model)
-			stream.Close()
-			responseContent <- response
-			return nil
+	if err = grpool.AddWithRecover(ctx, func(ctx context.Context) {
+		for {
+
+			response, err := stream.Recv()
+			if errors.Is(err, io.EOF) {
+				logger.Infof(ctx, "ChatCompletionStream model: %s, finished", request.Model)
+				stream.Close()
+				responseChan <- response
+				return
+			}
+
+			if err != nil {
+				logger.Errorf(ctx, "ChatCompletionStream model: %s, error: %v", request.Model, err)
+				close(responseChan)
+				return
+			}
+
+			responseChan <- response
 		}
-
-		if err != nil {
-			logger.Errorf(ctx, "ChatCompletionStream model: %s, error: %v", request.Model, err)
-			return err
-		}
-
-		responseContent <- response
+	}, nil); err != nil {
+		logger.Error(ctx, err)
+		return responseChan, err
 	}
+
+	return responseChan, nil
 }
 
 func GenImage(ctx context.Context, prompt string) (url string, err error) {
