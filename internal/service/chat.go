@@ -15,7 +15,7 @@ import (
 type (
 	IChat interface {
 		Chat(ctx context.Context, chat *model.Chat, retry ...int) (response openai.ChatCompletionResponse, err error)
-		ChatStream(ctx context.Context, chat *model.Chat, response chan openai.ChatCompletionStreamResponse, retry ...int) (err error)
+		ChatStream(ctx context.Context, chat *model.Chat, retry ...int) (responseChan chan model.ChatCompletionStreamResponse, err error)
 	}
 )
 

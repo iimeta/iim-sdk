@@ -2,6 +2,8 @@ package chat
 
 import (
 	"context"
+	"github.com/gogf/gf/v2/encoding/gjson"
+	"github.com/gogf/gf/v2/os/grpool"
 	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/iimeta/iim-sdk/internal/consts"
 	"github.com/iimeta/iim-sdk/internal/errors"
@@ -103,13 +105,15 @@ func (s *sChat) Chat(ctx context.Context, chat *model.Chat, retry ...int) (respo
 	return response, nil
 }
 
-func (s *sChat) ChatStream(ctx context.Context, chat *model.Chat, response chan openai.ChatCompletionStreamResponse, retry ...int) (err error) {
+func (s *sChat) ChatStream(ctx context.Context, chat *model.Chat, retry ...int) (responseChan chan model.ChatCompletionStreamResponse, err error) {
 
 	// todo
 	if len(retry) == 5 {
 		logger.Infof(ctx, "ChatStream model: %s, retry: %d", chat.Model, len(retry))
 		chat.Model = openai.GPT3Dot5Turbo16K
 	}
+
+	responseChan = make(chan model.ChatCompletionStreamResponse)
 
 	defer func() {
 		if err != nil {
@@ -118,7 +122,7 @@ func (s *sChat) ChatStream(ctx context.Context, chat *model.Chat, response chan 
 			if errors.As(err, &e) {
 
 				if len(retry) == 10 {
-					response <- openai.ChatCompletionStreamResponse{
+					responseChan <- model.ChatCompletionStreamResponse{
 						ID:      "error",
 						Object:  "chat.completion.chunk",
 						Created: time.Now().Unix(),
@@ -136,7 +140,7 @@ func (s *sChat) ChatStream(ctx context.Context, chat *model.Chat, response chan 
 				switch e.HTTPStatusCode {
 				case 400:
 					if gstr.Contains(err.Error(), "Please reduce the length of the messages") {
-						chatCompletionStreamResponse := openai.ChatCompletionStreamResponse{
+						responseChan <- model.ChatCompletionStreamResponse{
 							ID:      "error",
 							Object:  "chat.completion.chunk",
 							Created: time.Now().Unix(),
@@ -148,37 +152,85 @@ func (s *sChat) ChatStream(ctx context.Context, chat *model.Chat, response chan 
 								},
 							}},
 						}
-						response <- chatCompletionStreamResponse
 						return
 					}
-					err = s.ChatStream(ctx, chat, response, append(retry, 1)...)
+					responseChan, err = s.ChatStream(ctx, chat, append(retry, 1)...)
 				case 429:
-					err = s.ChatStream(ctx, chat, response, append(retry, 1)...)
+					responseChan, err = s.ChatStream(ctx, chat, append(retry, 1)...)
 				default:
-					err = s.ChatStream(ctx, chat, response, append(retry, 1)...)
+					responseChan, err = s.ChatStream(ctx, chat, append(retry, 1)...)
 				}
 			}
 		}
 	}()
 
-	switch chat.Corp {
-	case consts.CORP_OPENAI:
-		err = sdk.ChatCompletionStream(ctx, openai.ChatCompletionRequest{
-			Model:    chat.Model,
-			Messages: chat.Messages,
-			Stream:   true,
-		}, response, retry...)
-	case consts.CORP_BAIDU:
-	case consts.CORP_XFYUN:
-	case consts.CORP_ALIYUN:
-	default:
-		return errors.New("Unknown Corp: " + chat.Corp)
-	}
-
+	promptTokens, err := sdk.NumTokensFromMessages(chat.Messages, chat.Model)
 	if err != nil {
-		logger.Errorf(ctx, "ChatStream model: %s, error: %v", chat.Model, err)
-		return err
+		return responseChan, err
 	}
 
-	return nil
+	streamResponse := make(chan openai.ChatCompletionStreamResponse)
+
+	if err = grpool.AddWithRecover(ctx, func(ctx context.Context) {
+
+		switch chat.Corp {
+		case consts.CORP_OPENAI:
+			err = sdk.ChatCompletionStream(ctx, openai.ChatCompletionRequest{
+				Model:    chat.Model,
+				Messages: chat.Messages,
+				Stream:   true,
+			}, streamResponse, retry...)
+		case consts.CORP_BAIDU:
+		case consts.CORP_XFYUN:
+		case consts.CORP_ALIYUN:
+		}
+
+	}, nil); err != nil {
+		logger.Error(ctx, err)
+		return responseChan, err
+	}
+
+	if err = grpool.AddWithRecover(ctx, func(ctx context.Context) {
+
+		defer close(streamResponse)
+		completionTokens := 0
+
+		for {
+			select {
+			case streamResponse := <-streamResponse:
+
+				bytes, err := gjson.Marshal(streamResponse)
+				if err != nil {
+					return
+				}
+
+				response := model.ChatCompletionStreamResponse{}
+				if err = gjson.Unmarshal(bytes, &response); err != nil {
+					return
+				}
+
+				if response.Usage.CompletionTokens, err = sdk.NumTokensFromString(response.Choices[0].Delta.Content, chat.Model); err != nil {
+					return
+				}
+
+				completionTokens += response.Usage.CompletionTokens
+				response.Usage.PromptTokens = promptTokens
+				response.Usage.CompletionTokens = completionTokens
+				response.Usage.TotalTokens = response.Usage.PromptTokens + response.Usage.CompletionTokens
+
+				responseChan <- response
+
+			default:
+				if err != nil {
+					logger.Errorf(ctx, "ChatStream model: %s, error: %v", chat.Model, err)
+					return
+				}
+			}
+		}
+	}, nil); err != nil {
+		logger.Error(ctx, err)
+		return responseChan, err
+	}
+
+	return responseChan, nil
 }
