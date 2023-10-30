@@ -59,12 +59,12 @@ func QwenChatCompletion(ctx context.Context, model string, messages []QwenChatCo
 
 	logger.Infof(ctx, "QwenChatCompletion model: %s", model)
 
-	now := gtime.Now().Unix()
+	now := gtime.Now().UnixMilli()
 
 	apiKey := getQwenApiKey(ctx, model)
 
 	defer func() {
-		logger.Infof(ctx, "QwenChatCompletion model: %s, apiKey: %s, 总耗时: %d", model, apiKey, gtime.Now().Unix()-now)
+		logger.Infof(ctx, "QwenChatCompletion model: %s, apiKey: %s, totalTime: %d ms", model, apiKey, gtime.Now().UnixMilli()-now)
 	}()
 
 	l := len(messages)

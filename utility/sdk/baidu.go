@@ -50,13 +50,13 @@ func ErnieBot(ctx context.Context, model string, messages []ErnieBotMessage, ret
 
 	logger.Infof(ctx, "ErnieBot model: %s", model)
 
-	now := gtime.Now().Unix()
+	now := gtime.Now().UnixMilli()
 
 	apps := config.Cfg.Sdk.Baidu.Models[model].Apps
 	app := apps[ernieBotRoundRobin.Index(len(apps))]
 
 	defer func() {
-		logger.Infof(ctx, "ErnieBot model: %s, appid: %s, 总耗时: %d", model, app.Id, gtime.Now().Unix()-now)
+		logger.Infof(ctx, "ErnieBot model: %s, appid: %s, totalTime: %d ms", model, app.Id, gtime.Now().UnixMilli()-now)
 	}()
 
 	req := ErnieBotReq{

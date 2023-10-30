@@ -71,10 +71,10 @@ func ChatCompletion(ctx context.Context, request openai.ChatCompletionRequest, r
 		Init(ctx, request.Model)
 	}
 
-	now := gtime.Now().Unix()
+	now := gtime.Now().UnixMilli()
 
 	defer func() {
-		logger.Infof(ctx, "ChatCompletion model: %s, 总耗时: %d", request.Model, gtime.Now().Unix()-now)
+		logger.Infof(ctx, "ChatCompletion model: %s, totalTime: %d ms", request.Model, gtime.Now().UnixMilli()-now)
 	}()
 
 	response, err := getClient(request.Model).CreateChatCompletion(ctx, request)
@@ -97,10 +97,10 @@ func ChatCompletionStream(ctx context.Context, request openai.ChatCompletionRequ
 		Init(ctx, request.Model)
 	}
 
-	now := gtime.Now().Unix()
+	now := gtime.Now().UnixMilli()
 
 	defer func() {
-		logger.Infof(ctx, "ChatCompletionStream model: %s, 总耗时: %d", request.Model, gtime.Now().Unix()-now)
+		logger.Infof(ctx, "ChatCompletionStream model: %s, totalTime: %d ms", request.Model, gtime.Now().UnixMilli()-now)
 	}()
 
 	stream, err := getClient(request.Model).CreateChatCompletionStream(ctx, request)
@@ -144,11 +144,11 @@ func GenImage(ctx context.Context, prompt string) (url string, err error) {
 
 	logger.Infof(ctx, "GenImage prompt: %s", prompt)
 
-	now := gtime.Now().Unix()
+	now := gtime.Now().UnixMilli()
 
 	defer func() {
 		logger.Infof(ctx, "GenImage url: %s", url)
-		logger.Infof(ctx, "GenImage 总耗时: %d", gtime.Now().Unix()-now)
+		logger.Infof(ctx, "GenImage totalTime: %d ms", gtime.Now().UnixMilli()-now)
 	}()
 
 	reqUrl := openai.ImageRequest{
@@ -175,12 +175,13 @@ func GenImageBase64(ctx context.Context, prompt string, retry ...int) (string, e
 
 	logger.Infof(ctx, "GenImageBase64 prompt: %s", prompt)
 
-	now := gtime.Now().Unix()
+	now := gtime.Now().UnixMilli()
+
 	imgBase64 := ""
 
 	defer func() {
 		logger.Infof(ctx, "GenImageBase64 len: %d", len(imgBase64))
-		logger.Infof(ctx, "GenImageBase64 总耗时: %d", gtime.Now().Unix()-now)
+		logger.Infof(ctx, "GenImageBase64 totalTime: %d ms", gtime.Now().UnixMilli()-now)
 	}()
 
 	if len(retry) == 5 {

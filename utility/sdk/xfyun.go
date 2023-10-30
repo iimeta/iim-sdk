@@ -104,12 +104,13 @@ func Spark(ctx context.Context, model, uid string, text []Text, retry ...int) (r
 
 	logger.Infof(ctx, "Spark model: %s", model)
 
-	now := gtime.Now().Unix()
+	now := gtime.Now().UnixMilli()
+
 	apps := config.Cfg.Sdk.Xfyun.Models[model].Apps
 	app := apps[sparkRoundRobin.Index(len(apps))]
 
 	defer func() {
-		logger.Infof(ctx, "Spark model: %s, appid: %s, 总耗时: %d", model, app.Id, gtime.Now().Unix()-now)
+		logger.Infof(ctx, "Spark model: %s, appid: %s, totalTime: %d ms", model, app.Id, gtime.Now().UnixMilli()-now)
 	}()
 
 	sparkReq := SparkReq{
@@ -200,12 +201,13 @@ func SparkStream(ctx context.Context, model, uid string, text []Text, responseCo
 
 	logger.Infof(ctx, "SparkStream model: %s", model)
 
-	now := gtime.Now().Unix()
+	now := gtime.Now().UnixMilli()
+
 	apps := config.Cfg.Sdk.Xfyun.Models[model].Apps
 	app := apps[sparkRoundRobin.Index(len(apps))]
 
 	defer func() {
-		logger.Infof(ctx, "SparkStream model: %s, appid: %s, 总耗时: %d", model, app.Id, gtime.Now().Unix()-now)
+		logger.Infof(ctx, "SparkStream model: %s, appid: %s, totalTime: %d ms", model, app.Id, gtime.Now().UnixMilli()-now)
 	}()
 
 	sparkReq := SparkReq{
