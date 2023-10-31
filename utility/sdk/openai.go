@@ -100,7 +100,9 @@ func ChatCompletionStream(ctx context.Context, request openai.ChatCompletionRequ
 	now := gtime.Now().UnixMilli()
 
 	defer func() {
-		logger.Infof(ctx, "ChatCompletionStream model: %s, totalTime: %d ms", request.Model, gtime.Now().UnixMilli()-now)
+		if err != nil {
+			logger.Infof(ctx, "ChatCompletionStream model: %s, totalTime: %d ms", request.Model, gtime.Now().UnixMilli()-now)
+		}
 	}()
 
 	stream, err := getClient(request.Model).CreateChatCompletionStream(ctx, request)
@@ -111,9 +113,17 @@ func ChatCompletionStream(ctx context.Context, request openai.ChatCompletionRequ
 
 	logger.Infof(ctx, "ChatCompletionStream model: %s, start", request.Model)
 
+	duration := gtime.Now().UnixMilli()
+
 	responseChan = make(chan openai.ChatCompletionStreamResponse)
 
 	if err = grpool.AddWithRecover(ctx, func(ctx context.Context) {
+
+		defer func() {
+			end := gtime.Now().UnixMilli()
+			logger.Infof(ctx, "ChatCompletionStream model: %s, connTime: %d ms, duration: %d ms, totalTime: %d ms", request.Model, duration-now, end-duration, end-now)
+		}()
+
 		for {
 
 			response, err := stream.Recv()
