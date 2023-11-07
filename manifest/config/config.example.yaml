@@ -1,8 +1,5 @@
 server:
   address:     ":10000"
-  openapiPath: "/api.json"
-  swaggerPath: "/swagger"
-  clientMaxBodySize: 100m
 
 # Redis 配置
 redis:
