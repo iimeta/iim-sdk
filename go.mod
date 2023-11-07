@@ -6,10 +6,10 @@ require (
 	github.com/bwmarrin/snowflake v0.3.0
 	github.com/gogf/gf/contrib/nosql/redis/v2 v2.5.6
 	github.com/gogf/gf/v2 v2.5.6
-	github.com/gorilla/websocket v1.5.0
+	github.com/gorilla/websocket v1.5.1
 	github.com/pkoukk/tiktoken-go v0.1.6
-	github.com/redis/go-redis/v9 v9.2.1
-	github.com/sashabaranov/go-openai v1.16.0
+	github.com/redis/go-redis/v9 v9.3.0
+	github.com/sashabaranov/go-openai v1.16.1
 	go.mongodb.org/mongo-driver v1.12.1
 )
 
