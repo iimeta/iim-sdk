@@ -9,8 +9,8 @@ require (
 	github.com/gorilla/websocket v1.5.1
 	github.com/pkoukk/tiktoken-go v0.1.6
 	github.com/redis/go-redis/v9 v9.3.0
-	github.com/sashabaranov/go-openai v1.16.1
-	go.mongodb.org/mongo-driver v1.12.1
+	github.com/sashabaranov/go-openai v1.17.2
+	go.mongodb.org/mongo-driver v1.13.0
 )
 
 require (
