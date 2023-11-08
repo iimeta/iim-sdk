@@ -184,7 +184,7 @@ func GenImage(ctx context.Context, model, prompt string) (url string, err error)
 
 func GenImageBase64(ctx context.Context, model, prompt string, retry ...int) (string, error) {
 
-	logger.Infof(ctx, "GenImageBase64 model: %s, prompt: %s", prompt)
+	logger.Infof(ctx, "GenImageBase64 model: %s, prompt: %s", model, prompt)
 
 	now := gtime.Now().UnixMilli()
 
