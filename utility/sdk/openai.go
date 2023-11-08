@@ -150,30 +150,31 @@ func ChatCompletionStream(ctx context.Context, request openai.ChatCompletionRequ
 	return responseChan, nil
 }
 
-func GenImage(ctx context.Context, prompt string) (url string, err error) {
+func GenImage(ctx context.Context, model, prompt string) (url string, err error) {
 
-	logger.Infof(ctx, "GenImage prompt: %s", prompt)
+	logger.Infof(ctx, "GenImage model: %s, prompt: %s", model, prompt)
 
 	now := gtime.Now().UnixMilli()
 
 	defer func() {
-		logger.Infof(ctx, "GenImage url: %s", url)
-		logger.Infof(ctx, "GenImage totalTime: %d ms", gtime.Now().UnixMilli()-now)
+		logger.Infof(ctx, "GenImage model: %s, url: %s", model, url)
+		logger.Infof(ctx, "GenImage model: %s, totalTime: %d ms", model, gtime.Now().UnixMilli()-now)
 	}()
 
 	reqUrl := openai.ImageRequest{
+		Model:          model,
 		Prompt:         prompt,
 		Size:           openai.CreateImageSize1024x1024,
 		ResponseFormat: openai.CreateImageResponseFormatURL,
 		N:              1,
 	}
 
-	respUrl, err := getClient(openai.GPT3Dot5Turbo16K).CreateImage(ctx, reqUrl)
+	respUrl, err := getClient(model).CreateImage(ctx, reqUrl)
 	if err != nil {
 		logger.Errorf(ctx, "GenImage creation error: %v", err)
 		time.Sleep(5 * time.Second)
-		Init(ctx, openai.GPT3Dot5Turbo16K)
-		return GenImage(ctx, prompt)
+		Init(ctx, model)
+		return GenImage(ctx, model, prompt)
 	}
 
 	url = respUrl.Data[0].URL
@@ -181,17 +182,17 @@ func GenImage(ctx context.Context, prompt string) (url string, err error) {
 	return url, nil
 }
 
-func GenImageBase64(ctx context.Context, prompt string, retry ...int) (string, error) {
+func GenImageBase64(ctx context.Context, model, prompt string, retry ...int) (string, error) {
 
-	logger.Infof(ctx, "GenImageBase64 prompt: %s", prompt)
+	logger.Infof(ctx, "GenImageBase64 model: %s, prompt: %s", prompt)
 
 	now := gtime.Now().UnixMilli()
 
 	imgBase64 := ""
 
 	defer func() {
-		logger.Infof(ctx, "GenImageBase64 len: %d", len(imgBase64))
-		logger.Infof(ctx, "GenImageBase64 totalTime: %d ms", gtime.Now().UnixMilli()-now)
+		logger.Infof(ctx, "GenImageBase64 model: %s, len: %d", model, len(imgBase64))
+		logger.Infof(ctx, "GenImageBase64 model: %s, totalTime: %d ms", model, gtime.Now().UnixMilli()-now)
 	}()
 
 	if len(retry) == 5 {
@@ -199,15 +200,16 @@ func GenImageBase64(ctx context.Context, prompt string, retry ...int) (string, e
 	}
 
 	reqBase64 := openai.ImageRequest{
+		Model:          model,
 		Prompt:         prompt,
 		Size:           openai.CreateImageSize1024x1024,
 		ResponseFormat: openai.CreateImageResponseFormatB64JSON,
 		N:              1,
 	}
 
-	respBase64, err := getClient(openai.GPT3Dot5Turbo16K).CreateImage(ctx, reqBase64)
+	respBase64, err := getClient(model).CreateImage(ctx, reqBase64)
 	if err != nil {
-		logger.Errorf(ctx, "GenImageBase64 creation error: %v", err)
+		logger.Errorf(ctx, "GenImageBase64 model: %s, creation error: %v", model, err)
 
 		e := &openai.APIError{}
 		if errors.As(err, &e) {
@@ -217,12 +219,12 @@ func GenImageBase64(ctx context.Context, prompt string, retry ...int) (string, e
 					return "", err
 				}
 				time.Sleep(5 * time.Second)
-				Init(ctx, openai.GPT3Dot5Turbo16K)
-				return GenImageBase64(ctx, prompt, append(retry, 1)...)
+				Init(ctx, model)
+				return GenImageBase64(ctx, model, prompt, append(retry, 1)...)
 			default:
 				time.Sleep(5 * time.Second)
-				Init(ctx, openai.GPT3Dot5Turbo16K)
-				return GenImageBase64(ctx, prompt, append(retry, 1)...)
+				Init(ctx, model)
+				return GenImageBase64(ctx, model, prompt, append(retry, 1)...)
 			}
 		}
 	}

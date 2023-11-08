@@ -153,7 +153,7 @@ func (s *sOpenAI) Text(ctx context.Context, robot *model.Robot, message *model.M
 
 func (s *sOpenAI) Image(ctx context.Context, robot *model.Robot, message *model.Message) (imageInfo *model.Image, err error) {
 
-	imgBase64, err := sdk.GenImageBase64(ctx, message.Prompt)
+	imgBase64, err := sdk.GenImageBase64(ctx, robot.Model, message.Prompt)
 	if err != nil {
 		logger.Error(ctx, err)
 		return nil, err
