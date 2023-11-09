@@ -2,9 +2,9 @@ package openai
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"github.com/gogf/gf/v2/encoding/gjson"
+	"github.com/gogf/gf/v2/os/gfile"
 	"github.com/gogf/gf/v2/os/gtime"
 	"github.com/gogf/gf/v2/text/gstr"
 	"github.com/iimeta/iim-sdk/internal/config"
@@ -13,6 +13,7 @@ import (
 	"github.com/iimeta/iim-sdk/internal/service"
 	"github.com/iimeta/iim-sdk/utility/logger"
 	"github.com/iimeta/iim-sdk/utility/sdk"
+	"github.com/iimeta/iim-sdk/utility/util"
 	"github.com/sashabaranov/go-openai"
 	"time"
 )
@@ -153,19 +154,24 @@ func (s *sOpenAI) Text(ctx context.Context, robot *model.Robot, message *model.M
 
 func (s *sOpenAI) Image(ctx context.Context, robot *model.Robot, message *model.Message) (imageInfo *model.Image, err error) {
 
-	imgBase64, err := sdk.GenImageBase64(ctx, robot.Model, message.Prompt)
+	url, err := sdk.GenImage(ctx, robot.Model, message.Prompt)
 	if err != nil {
 		logger.Error(ctx, err)
 		return nil, err
 	}
 
-	imgBytes, err := base64.StdEncoding.DecodeString(imgBase64)
-	if err != nil {
-		logger.Error(ctx, err)
+	imgBytes := util.HttpDownloadFile(ctx, url)
+
+	if len(imgBytes) == 0 {
 		return nil, err
 	}
 
-	imageInfo, err = service.File().SaveImage(ctx, imgBytes, ".png")
+	ext := gfile.Ext(url)
+	if ext == "" {
+		ext = ".png"
+	}
+
+	imageInfo, err = service.File().SaveImage(ctx, imgBytes, ext)
 	if err != nil {
 		logger.Error(ctx, err)
 		return nil, err
