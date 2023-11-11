@@ -50,11 +50,20 @@ func (s *sOpenAI) Text(ctx context.Context, robot *model.Robot, message *model.M
 		contexts := service.Common().GetMessageContext(ctx, robot, message)
 
 		if len(contexts) == 0 {
+
+			if robot.Prompt != "" {
+				s.roleSystem = openai.ChatCompletionMessage{
+					Role:    openai.ChatMessageRoleSystem,
+					Content: robot.Prompt,
+				}
+			}
+
 			err := service.Common().SaveMessageContext(ctx, robot, message, s.roleSystem)
 			if err != nil {
 				logger.Error(ctx, err)
 				return nil, err
 			}
+
 			messages = append(messages, s.roleSystem)
 		}
 
@@ -67,17 +76,34 @@ func (s *sOpenAI) Text(ctx context.Context, robot *model.Robot, message *model.M
 			}
 
 			if i == 0 && chatCompletionMessage.Role != openai.ChatMessageRoleSystem {
+
+				if robot.Prompt != "" {
+					s.roleSystem = openai.ChatCompletionMessage{
+						Role:    openai.ChatMessageRoleSystem,
+						Content: robot.Prompt,
+					}
+				}
+
 				err := service.Common().SaveMessageContext(ctx, robot, message, s.roleSystem)
 				if err != nil {
 					logger.Error(ctx, err)
 					return nil, err
 				}
+
 				messages = append(messages, s.roleSystem)
 			}
 
 			messages = append(messages, chatCompletionMessage)
 		}
 	} else {
+
+		if robot.Prompt != "" {
+			s.roleSystem = openai.ChatCompletionMessage{
+				Role:    openai.ChatMessageRoleSystem,
+				Content: robot.Prompt,
+			}
+		}
+
 		messages = append(messages, s.roleSystem)
 	}
 
