@@ -72,7 +72,7 @@ func (s *sMidjourney) Image(ctx context.Context, robot *model.Robot, message *mo
 			}
 
 			// 替换CDN
-			imageInfo.Url = cdnUrl + originalUrl.Path
+			imageInfo.Url = cdnUrl + originalUrl.RequestURI()
 
 		} else {
 
@@ -82,13 +82,13 @@ func (s *sMidjourney) Image(ctx context.Context, robot *model.Robot, message *mo
 				return nil, err
 			}
 
-			imageInfo, err = service.File().SaveImage(ctx, imgBytes, gfile.Ext(imageInfo.Url))
+			imgInfo, err := service.File().SaveImage(ctx, imgBytes, gfile.Ext(imageInfo.Url))
 			if err != nil {
 				logger.Error(ctx, err)
 				return nil, err
 			}
 
-			imageInfo.Url = config.Cfg.Filesystem.Local.Domain + "/" + imageInfo.FilePath
+			imageInfo.Url = config.Cfg.Filesystem.Local.Domain + "/" + imgInfo.FilePath
 		}
 	}
 
